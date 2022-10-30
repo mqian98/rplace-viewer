@@ -1,0 +1,18 @@
+[package]
+name = "rplace"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+csv = "1.1"
+log = "0.4"
+libm = "0.2"
+min-max = "0.1"
+num = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+speedy2d = "1.8.0"
+strum = "0.24"
+strum_macros = "0.24"
+time = { version = "0.3.16", features = ["macros", "parsing", "serde"] }
