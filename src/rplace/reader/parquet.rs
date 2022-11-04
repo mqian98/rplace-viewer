@@ -1,5 +1,5 @@
-use parquet::{file::reader::{FileReader, SerializedFileReader}, record::{Field, Row, reader::RowIter}};
-use std::{fs::File, path::Path, fmt, iter::Cloned};
+use parquet::{file::reader::{SerializedFileReader}, record::{Field, Row, reader::RowIter}};
+use std::{fs::File, fmt};
 
 // obtained parquest file from the following article: https://medium.com/@deephavendatalabs/the-r-place-dataset-bf4b0d70ce72
 // Download URL: https://deephaven.io/wp-content/2022_place_deephaven.parquet
@@ -50,7 +50,14 @@ pub struct RPlaceParquetDataIterator<'a> {
     iter: RowIter<'a>,
 }
 
-impl<'a> Iterator for RPlaceParquetDataIterator<'a> {
+impl<'a> fmt::Debug for RPlaceParquetDataIterator<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RPlaceParquetDataIterator")
+         .finish()
+    }
+}
+
+impl Iterator for RPlaceParquetDataIterator<'_> {
     type Item = RPlaceParquetDatapoint;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -80,6 +87,7 @@ impl<'a> RPlaceParquetDataIterator<'a> {
             match (string.as_str(), field) {
                 ("timestamp", Field::Long(t)) => datapoint.timestamp = *t,
                 ("user_id", Field::Int(u)) => datapoint.user_id = *u,
+                ("rgb", Field::Int(rgb)) => datapoint.rgb = (*rgb) as u64,
                 ("x1", Field::Short(s)) => datapoint.x1 = *s,
                 ("y1", Field::Short(s)) => datapoint.y1 = *s,
                 ("x2", Field::Short(s)) => datapoint.x2 = *s,

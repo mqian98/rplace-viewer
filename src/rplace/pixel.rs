@@ -132,6 +132,7 @@ impl TryFrom<u64> for PixelColor {
             }
         }
 
+        println!("No color match! Input=0x{:#08x}", item);
         return Err(());
     }
 }

@@ -105,10 +105,11 @@ impl RPlaceDataReader {
     }
 }
 
+#[derive(Debug)]
 pub struct RPlaceDataIterator<'a> {
     iter: RPlaceParquetDataIterator<'a>,
     position: Option<Vector2<usize>>,
-    
+
     // all values should be less than the x,y limit
     limit: Option<Vector2<usize>>,
     cached_datapoint: Option<RPlaceDatapoint>,
