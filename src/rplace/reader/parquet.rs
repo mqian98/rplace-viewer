@@ -1,5 +1,8 @@
-use parquet::{file::reader::{FileReader, SerializedFileReader}, record::{Field, Row}};
-use std::{fs::File, path::Path};
+use parquet::{file::reader::{FileReader, SerializedFileReader}, record::{Field, Row, reader::RowIter}};
+use std::{fs::File, path::Path, fmt, iter::Cloned};
+
+// obtained parquest file from the following article: https://medium.com/@deephavendatalabs/the-r-place-dataset-bf4b0d70ce72
+// Download URL: https://deephaven.io/wp-content/2022_place_deephaven.parquet
 
 #[derive(Copy, Clone, Debug, Default)]
 pub struct RPlaceParquetDatapoint {
@@ -12,25 +15,84 @@ pub struct RPlaceParquetDatapoint {
     pub y2: i16,
 }
 
-fn convert_row(row: Row) -> RPlaceParquetDatapoint {
-    let mut datapoint: RPlaceParquetDatapoint = RPlaceParquetDatapoint::default();
-    for (string, field) in row.get_column_iter() {
-        match (string.as_str(), field) {
-            ("timestamp", Field::Long(t)) => datapoint.timestamp = *t,
-            ("user_id", Field::Int(u)) => datapoint.user_id = *u,
-            ("x1", Field::Short(s)) => datapoint.x1 = *s,
-            ("y1", Field::Short(s)) => datapoint.y1 = *s,
-            ("x2", Field::Short(s)) => datapoint.x2 = *s,
-            ("y2", Field::Short(s)) => datapoint.y2 = *s,
-            _ => (),
-        }
-    }
-
-    return datapoint;
+pub struct RPlaceParquetDataReader {
+    file_path: String,
+    reader: SerializedFileReader<File>,
 }
 
-// obtained parquest file from the following article: https://medium.com/@deephavendatalabs/the-r-place-dataset-bf4b0d70ce72
-// Download URL: https://deephaven.io/wp-content/2022_place_deephaven.parquet
+impl fmt::Debug for RPlaceParquetDataReader {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.debug_struct("RPlaceParquetDataIterator")
+         .field("file_path", &self.file_path)
+         .finish()
+    }
+}
+
+impl RPlaceParquetDataReader {
+    pub fn new(file_path: &str) -> Option<RPlaceParquetDataReader> {
+        match File::open(file_path) {
+            Ok(file) => {
+                if let Ok(reader) = SerializedFileReader::new(file) {
+                    return Some(RPlaceParquetDataReader { 
+                        file_path: file_path.to_string(), 
+                        reader 
+                    });
+                }
+            },
+            _ => return None,
+        };
+
+        return None;
+    }
+}
+
+pub struct RPlaceParquetDataIterator<'a> {
+    iter: RowIter<'a>,
+}
+
+impl<'a> Iterator for RPlaceParquetDataIterator<'a> {
+    type Item = RPlaceParquetDatapoint;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.iter.next() {
+            Some(row) => Some(self.convert_row(row)),
+            _ => None
+        }
+    }
+}
+
+impl IntoIterator for RPlaceParquetDataReader {
+    type Item = RPlaceParquetDatapoint;
+
+    type IntoIter = RPlaceParquetDataIterator<'static>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        RPlaceParquetDataIterator {
+            iter: self.reader.into_iter()
+        }
+    }
+}
+
+impl<'a> RPlaceParquetDataIterator<'a> {
+    fn convert_row(&self, row: Row) -> RPlaceParquetDatapoint {
+        let mut datapoint: RPlaceParquetDatapoint = RPlaceParquetDatapoint::default();
+        for (string, field) in row.get_column_iter() {
+            match (string.as_str(), field) {
+                ("timestamp", Field::Long(t)) => datapoint.timestamp = *t,
+                ("user_id", Field::Int(u)) => datapoint.user_id = *u,
+                ("x1", Field::Short(s)) => datapoint.x1 = *s,
+                ("y1", Field::Short(s)) => datapoint.y1 = *s,
+                ("x2", Field::Short(s)) => datapoint.x2 = *s,
+                ("y2", Field::Short(s)) => datapoint.y2 = *s,
+                _ => (),
+            }
+        }
+    
+        return datapoint;
+    }
+}
+
+/* 
 fn main() {
     let path = Path::new("/Users/michaelqian/Projects/rplace/data/parquet/2022_place_deephaven.parquet");
     if let Ok(file) = File::open(&path) {
@@ -54,3 +116,4 @@ fn main() {
         }
     }
 }
+*/

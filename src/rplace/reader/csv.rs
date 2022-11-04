@@ -17,7 +17,7 @@ pub struct RPlaceCSVDataIterator {
 
 impl fmt::Debug for RPlaceCSVDataIterator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("RedditPlaceDataReader")
+        f.debug_struct("RPlaceCSVDataIterator")
          .field("file_path", &self.file_path)
          .finish()
     }
@@ -26,9 +26,9 @@ impl fmt::Debug for RPlaceCSVDataIterator {
 impl RPlaceCSVDataIterator {
     pub fn new(file_path: &str) -> Option<RPlaceCSVDataIterator> {
         match File::open(file_path) {
-            Ok(f) => {
-                let rdr = csv::Reader::from_reader(f);
-                let iter = rdr.into_deserialize();
+            Ok(file) => {
+                let reader = csv::Reader::from_reader(file);
+                let iter = reader.into_deserialize();
                 Some(RPlaceCSVDataIterator {
                     file_path: file_path.to_string(),
                     iter,
