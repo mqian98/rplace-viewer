@@ -4,10 +4,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fs::File;
 use std::hash::{Hash, Hasher};
-use speedy2d::dimen::Vector2;
+use speedy2d::dimen::{Vector2, Vec2};
 use time::PrimitiveDateTime;
 use crate::rplace::data::RPlaceDatapoint;
 use super::super::pixel::PixelColor;
+use serde::de::Error;
 
 pub struct RPlaceCSVDataIterator {
     file_path: String,
@@ -49,49 +50,56 @@ impl RPlaceCSVDataIterator {
     }
 }
 
+
+// does not iterate over bad values
 impl Iterator for RPlaceCSVDataIterator {
-    type Item = RPlaceCSVDatapoint;
+    type Item = RPlaceDatapoint;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let value: Option<Result<RPlaceCSVDatapoint, csv::Error>> = self.iter.next();
-        match value {
-            Some(Ok(data_point)) => Some(data_point),
-            _ => None
+        while let Some(value) = self.iter.next() {
+            match value {
+                Ok(datapoint) => {
+                    return Some(RPlaceDatapoint::from(datapoint));
+                },
+                Err(error) => println!("Error: failed to parse datapoint. Skipping to next. Error: {:?}", error),
+            }
         }
+        return None;
     }
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RPlaceCSVDatapoint {
     #[serde(deserialize_with = "primitive_date_time_from_str")]
-    pub timestamp: Option<PrimitiveDateTime>,
+    pub timestamp: PrimitiveDateTime,
     pub user_id: String, 
     #[serde(deserialize_with = "pixel_color_from_str")]
-    pub pixel_color: Option<PixelColor>,
+    pub pixel_color: PixelColor,
     #[serde(deserialize_with = "vector2_from_str")]
-    pub coordinate: Option<Vector2<u32>>,
+    pub coordinate: Vector2<u32>,
 }
 
-impl TryFrom<&RPlaceCSVDatapoint> for RPlaceDatapoint {
-    type Error = ();
-    fn try_from(item: &RPlaceCSVDatapoint) -> Result<Self, Self::Error> {
-        if let (Some(timestamp), Some(pixel_color), Some(coordinate)) = (item.timestamp, item.pixel_color, item.coordinate) {
-            let mut hasher = DefaultHasher::new();
-            item.user_id.hash(&mut hasher);
-            return Ok(RPlaceDatapoint { 
-                timestamp: timestamp.assume_utc().unix_timestamp() as u64, 
-                user_id: hasher.finish() as u32, 
-                color: pixel_color, 
-                coordinate: (coordinate.x as u16, coordinate.y as u16), 
-                is_mod: false, 
-            });
-        }
-
-        Err(())
+impl From<&RPlaceCSVDatapoint> for RPlaceDatapoint {
+    fn from(item: &RPlaceCSVDatapoint) -> Self {
+        let mut hasher = DefaultHasher::new();
+        item.user_id.hash(&mut hasher);
+        return RPlaceDatapoint { 
+            timestamp: item.timestamp.assume_utc().unix_timestamp() as u64, 
+            user_id: hasher.finish() as u32, 
+            color: item.pixel_color, 
+            coordinate: Vec2::new(item.coordinate.x as f32, item.coordinate.y as f32), 
+            is_mod: false, 
+        };
     }
 }
 
-fn primitive_date_time_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Option<PrimitiveDateTime>, D::Error> {
+impl From<RPlaceCSVDatapoint> for RPlaceDatapoint {
+    fn from(item: RPlaceCSVDatapoint) -> Self {
+        (&item).into()
+    }
+}
+
+fn primitive_date_time_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<PrimitiveDateTime, D::Error> {
     let s: Option<String> = Deserialize::deserialize(d)?;
     match s {
         Some(datetime) => {
@@ -106,43 +114,39 @@ fn primitive_date_time_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Optio
             );
 
             if let Ok(value) = PrimitiveDateTime::parse(&datetime, &format1) {
-                return Ok(Some(value))
+                return Ok(value)
             }
 
             if let Ok(value) = PrimitiveDateTime::parse(&datetime, &format2) {
-                return Ok(Some(value))
+                return Ok(value)
             }
 
-            println!("Failed to parse string to PrimitiveDateTime: string={}", datetime);
-            Ok(None)
+            Err(D::Error::custom(format!("Failed to parse string to PrimitiveDateTime: string={datetime}")))
         },
         None => {
-            println!("Failed to deserialize datetime string");
-            Ok(None)
+            Err(D::Error::custom("Failed to deserialize datetime string"))
         },
     }
 }
 
-fn pixel_color_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Option<PixelColor>, D::Error> {
+fn pixel_color_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<PixelColor, D::Error> {
     let s: Option<String> = Deserialize::deserialize(d)?;
     match s {
         Some(hex_string) => {
             match PixelColor::try_from(&hex_string) {
-                Ok(value) => Ok(Some(value)),
+                Ok(value) => Ok(value),
                 Err(_) => {
-                    println!("Failed to match hex with pixel color: {:?}", hex_string);
-                    Ok(None)
+                    Err(D::Error::custom(format!("Failed to match hex with pixel color: {hex_string}")))
                 },
             }
         },
         None => {
-            println!("Failed to deserialize hex color string");
-            Ok(None)
+            Err(D::Error::custom("Failed to deserialize hex color string"))
         },
     }
 }
 
-fn vector2_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vector2<u32>>, D::Error> {
+fn vector2_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Vector2<u32>, D::Error> {
     let s: Option<String> = Deserialize::deserialize(d)?;
     
     match s {
@@ -153,15 +157,13 @@ fn vector2_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vector2<u3
                 let v1_option = v[1].parse::<f32>();
         
                 if let (Ok(v0), Ok(v1)) = (v0_option, v1_option) {
-                    return Ok(Some(Vector2::new(v0, v1).into_u32()));
+                    return Ok(Vector2::new(v0, v1).into_u32());
                 }
             }
-            println!("Failed to parse vector {:?}", some);
-            Ok(None)
+            Err(D::Error::custom(format!("Failed to parse vector {some}")))
         },
         None => {
-            println!("Failed to deserialize vector2 string");
-            Ok(None)
+            Err(D::Error::custom("Failed to deserialize vector2 string"))
         }
     }
 }

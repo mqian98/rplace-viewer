@@ -39,9 +39,7 @@ impl Canvas {
         println!("Size of pixels {:?} {:?} {:?}", std::mem::size_of_val(&pixels[0][0]), std::mem::size_of_val(&pixels[0]),  std::mem::size_of_val(&pixels));
 
         for record in iter {
-            if let (Some(pixel_color), Some(coordinate)) = (record.pixel_color, record.coordinate) {
-                pixels[coordinate.y as usize][coordinate.x as usize] = pixel_color;            
-            }
+            pixels[record.coordinate.y as usize][record.coordinate.x as usize] = record.color;            
         }
         return pixels;
     }
