@@ -1,15 +1,17 @@
 use csv::DeserializeRecordsIntoIter;
 use serde::{Deserialize, Deserializer};
+use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fs::File;
+use std::hash::{Hash, Hasher};
 use speedy2d::dimen::Vector2;
 use time::PrimitiveDateTime;
-
+use crate::rplace::data::RPlaceDatapoint;
 use super::super::pixel::PixelColor;
 
 pub struct RPlaceCSVDataIterator {
     file_path: String,
-    iter: DeserializeRecordsIntoIter<File, RedditPlaceDataPoint>,
+    iter: DeserializeRecordsIntoIter<File, RPlaceCSVDatapoint>,
 }
 
 impl fmt::Debug for RPlaceCSVDataIterator {
@@ -39,7 +41,7 @@ impl RPlaceCSVDataIterator {
         let f = File::open(file_path)?;
         let mut rdr = csv::Reader::from_reader(f);
         for result in rdr.deserialize().take(n as usize) {
-            let record: RedditPlaceDataPoint = result?;
+            let record: RPlaceCSVDatapoint = result?;
             println!("{:?} {:?} {:?} {:?}", record.timestamp, record.user_id, record.pixel_color, record.coordinate);
         }
 
@@ -48,10 +50,10 @@ impl RPlaceCSVDataIterator {
 }
 
 impl Iterator for RPlaceCSVDataIterator {
-    type Item = RedditPlaceDataPoint;
+    type Item = RPlaceCSVDatapoint;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let value: Option<Result<RedditPlaceDataPoint, csv::Error>> = self.iter.next();
+        let value: Option<Result<RPlaceCSVDatapoint, csv::Error>> = self.iter.next();
         match value {
             Some(Ok(data_point)) => Some(data_point),
             _ => None
@@ -60,7 +62,7 @@ impl Iterator for RPlaceCSVDataIterator {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct RedditPlaceDataPoint {
+pub struct RPlaceCSVDatapoint {
     #[serde(deserialize_with = "primitive_date_time_from_str")]
     pub timestamp: Option<PrimitiveDateTime>,
     pub user_id: String, 
@@ -68,6 +70,25 @@ pub struct RedditPlaceDataPoint {
     pub pixel_color: Option<PixelColor>,
     #[serde(deserialize_with = "vector2_from_str")]
     pub coordinate: Option<Vector2<u32>>,
+}
+
+impl TryFrom<&RPlaceCSVDatapoint> for RPlaceDatapoint {
+    type Error = ();
+    fn try_from(item: &RPlaceCSVDatapoint) -> Result<Self, Self::Error> {
+        if let (Some(timestamp), Some(pixel_color), Some(coordinate)) = (item.timestamp, item.pixel_color, item.coordinate) {
+            let mut hasher = DefaultHasher::new();
+            item.user_id.hash(&mut hasher);
+            return Ok(RPlaceDatapoint { 
+                timestamp: timestamp.assume_utc().unix_timestamp() as u64, 
+                user_id: hasher.finish() as u32, 
+                color: pixel_color, 
+                coordinate: (coordinate.x as u16, coordinate.y as u16), 
+                is_mod: false, 
+            });
+        }
+
+        Err(())
+    }
 }
 
 fn primitive_date_time_from_str<'de, D: Deserializer<'de>>(d: D) -> Result<Option<PrimitiveDateTime>, D::Error> {

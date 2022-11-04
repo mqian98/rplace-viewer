@@ -37,6 +37,13 @@ pub enum PixelColor {
     White, // #ffffff
 }
 
+// Default pixel color is black
+impl Default for PixelColor {
+    fn default() -> Self {
+        PixelColor::Black
+    }
+}
+
 impl TryFrom<&String> for PixelColor {
     type Error = ();
 
@@ -95,10 +102,30 @@ impl From<PixelColor> for u32 {
     }
 }
 
+impl From<PixelColor> for u64 {
+    fn from(item: PixelColor) -> Self {
+        u32::from(item) as u64
+    }
+}
+
 impl TryFrom<u32> for PixelColor {
     type Error = ();
 
     fn try_from(item: u32) -> Result<Self, Self::Error> {
+        for color in PixelColor::iter() {
+            if item == color.into() {
+                return Ok(color);
+            }
+        }
+
+        return Err(());
+    }
+}
+
+impl TryFrom<u64> for PixelColor {
+    type Error = ();
+
+    fn try_from(item: u64) -> Result<Self, Self::Error> {
         for color in PixelColor::iter() {
             if item == color.into() {
                 return Ok(color);
