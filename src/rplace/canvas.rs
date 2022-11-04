@@ -1,5 +1,5 @@
 use super::pixel::PixelColor;
-use super::reader::RedditPlaceDataIterator;
+use super::reader::csv::RPlaceCSVDataIterator;
 use speedy2d::dimen::Vector2;
 
 #[derive(Debug)]
@@ -25,7 +25,7 @@ impl Canvas {
     }
 
     pub fn new_with_file_path(file_path: &str) -> Option<Canvas> {
-        if let Some(iter) = RedditPlaceDataIterator::new(&file_path) {
+        if let Some(iter) = RPlaceCSVDataIterator::new(&file_path) {
             println!("Successfully created Reddit data iterator {:?}", iter);
             let pixels = Canvas::load_pixels(iter);
 
@@ -34,7 +34,7 @@ impl Canvas {
         return None;
     }
 
-    fn load_pixels(iter: RedditPlaceDataIterator) -> Vec<Vec<PixelColor>> {
+    fn load_pixels(iter: RPlaceCSVDataIterator) -> Vec<Vec<PixelColor>> {
         let mut pixels = vec![vec![PixelColor::Black; 2000]; 2000];
         println!("Size of pixels {:?} {:?} {:?}", std::mem::size_of_val(&pixels[0][0]), std::mem::size_of_val(&pixels[0]),  std::mem::size_of_val(&pixels));
 

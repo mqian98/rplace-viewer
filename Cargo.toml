@@ -2,6 +2,7 @@
 name = "rplace"
 version = "0.1.0"
 edition = "2021"
+default-run = "rplace"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,6 +12,7 @@ log = "0.4"
 libm = "0.2"
 min-max = "0.1"
 num = "0.4"
+parquet = "26.0"
 serde = { version = "1.0", features = ["derive"] }
 speedy2d = "1.8.0"
 strum = "0.24"
