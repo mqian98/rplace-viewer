@@ -22,6 +22,30 @@ pub struct RPlaceDatapoint {
     pub is_mod: bool, 
 }
 
+impl Default for RPlaceDatapoint {
+    fn default() -> Self {
+        RPlaceDatapoint { 
+            timestamp: 0, 
+            user_id: 0, 
+            color: PixelColor::Black, 
+            coordinate: RPlaceCoordinate::new(0.0, 0.0), 
+            is_mod: false, 
+        }
+    }
+}
+
+impl RPlaceDatapoint {
+    pub fn start_for_coordinate(coordinate: RPlaceCoordinate) -> Self {
+        RPlaceDatapoint { 
+            timestamp: 0, 
+            user_id: 0, 
+            color: PixelColor::White, 
+            coordinate, 
+            is_mod: false, 
+        }
+    }
+}
+
 impl TryFrom<&RPlaceParquetDatapoint> for RPlaceDatapoint {
     type Error = ();
 

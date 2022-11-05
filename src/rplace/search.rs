@@ -1,3 +1,36 @@
+use speedy2d::dimen::Vec2;
+
+use super::data::RPlaceDatapoint;
+
+// Data is 2d matrix. Each element is a sorted array of edits for that pixel location
+pub struct RPlaceDataset {
+    pub data: Vec<Vec<Vec<RPlaceDatapoint>>>,
+}
+
+impl RPlaceDataset {
+    pub fn empty(size: usize) -> RPlaceDataset {
+        let mut data = Vec::new();
+        for y in 0..size {
+            let mut row = Vec::new();
+            for x in 0..size {
+                let mut vector = Vec::new();
+                let datapoint = RPlaceDatapoint::start_for_coordinate(Vec2::new(x as f32, y as f32));
+                vector.push(datapoint);
+                row.push(vector);
+            }
+            data.push(row);
+        }
+
+        RPlaceDataset { 
+            data,
+        }
+    }
+
+    pub fn add(&mut self, datapoint: RPlaceDatapoint, x: usize, y: usize) {
+        self.data[y][x].push(datapoint);
+    }
+}
+
 pub fn search<T>(value: &T, vector: &Vec<T>) -> Option<T> where T: PartialOrd + Copy {
     let ret_idx = least_greater(value, vector, &mut 0, &mut (vector.len() as i64 - 1));
     match ret_idx - 1 {
