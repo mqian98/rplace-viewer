@@ -3,12 +3,13 @@ use speedy2d::dimen::Vec2;
 use super::data::RPlaceDatapoint;
 
 // Data is 2d matrix. Each element is a sorted array of edits for that pixel location
+#[derive(Debug)]
 pub struct RPlaceDataset {
     pub data: Vec<Vec<Vec<RPlaceDatapoint>>>,
 }
 
 impl RPlaceDataset {
-    pub fn empty(size: usize) -> RPlaceDataset {
+    pub fn new_with_initial_datapoint(size: usize) -> RPlaceDataset {
         let mut data = Vec::new();
         for y in 0..size {
             let mut row = Vec::new();
@@ -28,6 +29,17 @@ impl RPlaceDataset {
 
     pub fn add(&mut self, datapoint: RPlaceDatapoint, x: usize, y: usize) {
         self.data[y][x].push(datapoint);
+    }
+
+    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> usize {
+        let pixel_history = &self.data[y][x][start_idx..end_idx];
+        let result = pixel_history.binary_search_by(|probe| 
+            probe.timestamp.cmp(&timestamp)
+        );
+        match result {
+            Ok(value) => return value,
+            Err(value) => return value - 1,
+        }
     }
 }
 

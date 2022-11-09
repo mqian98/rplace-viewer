@@ -9,7 +9,7 @@ use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
 use speedy2d::Graphics2D;
 use speedy2d::window::{WindowHandler, WindowHelper, VirtualKeyCode, MouseScrollDistance};
-use super::canvas::Canvas;
+use super::canvas::{Canvas, self};
 
 #[derive(Debug)]
 pub struct RedditPlaceWindowHandler {
@@ -20,8 +20,8 @@ pub struct RedditPlaceWindowHandler {
 }
 
 impl RedditPlaceWindowHandler {
-    pub fn new(file_path: &str) -> RedditPlaceWindowHandler {
-        let canvas = match Canvas::new_with_file_path(file_path) {
+    pub fn new(file_path: &str, size: usize) -> RedditPlaceWindowHandler {
+        let canvas = match Canvas::new_with_file_path(file_path, size) {
             Some(canvas) => {
                 canvas
             }
@@ -31,6 +31,10 @@ impl RedditPlaceWindowHandler {
             }
         };
 
+        RedditPlaceWindowHandler::new_with_canvas(canvas)
+    }
+
+    pub fn new_with_canvas(canvas: Canvas) -> RedditPlaceWindowHandler {
         let graphics_helper = GraphicsHelper::new(canvas);
 
         RedditPlaceWindowHandler { 
@@ -101,6 +105,16 @@ impl WindowHandler for RedditPlaceWindowHandler
             },
             Some(VirtualKeyCode::H) => {
                 println!("{:?}", self);
+            },
+            Some(VirtualKeyCode::J) => {
+                let delta = -100_000_000_000;
+                self.graphics_helper.canvas.adjust_timestamp(delta);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::L) => {
+                let delta = 100_000_000_000;
+                self.graphics_helper.canvas.adjust_timestamp(delta);
+                helper.request_redraw();
             },
             _ => (),
         }

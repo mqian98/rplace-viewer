@@ -39,7 +39,7 @@ impl RPlaceDatapoint {
         RPlaceDatapoint { 
             timestamp: 0, 
             user_id: 0, 
-            color: PixelColor::White, 
+            color: PixelColor::Black, 
             coordinate, 
             is_mod: false, 
         }

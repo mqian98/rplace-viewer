@@ -29,9 +29,9 @@ impl RPlaceDataCounter {
     }
 }
 
-fn run_visualizer(file_path: &str) {
+fn run_visualizer(file_path: &str, size: usize) {
     let window = Window::new_fullscreen_borderless("R/Place Renderer").unwrap();
-    window.run_loop(RedditPlaceWindowHandler::new(file_path));
+    window.run_loop(RedditPlaceWindowHandler::new(file_path, size));
 }
 
 fn iterate_data(file_path: &str) {
@@ -70,6 +70,6 @@ fn iterate_data(file_path: &str) {
 
 fn main() {
     let file_path = "/Users/michaelqian/Projects/rplace/data/parquet/2022_place_deephaven.parquet";
-    //run_visualizer(file_path);
-    iterate_data(file_path);
+    run_visualizer(file_path, 2000);
+    //iterate_data(file_path);
 }
