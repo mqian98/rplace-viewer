@@ -32,6 +32,7 @@ impl RPlaceDataset {
     }
 
     pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> usize {
+        //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
         let pixel_history = &self.data[y][x][start_idx..end_idx];
         let result = pixel_history.binary_search_by(|probe| 
             probe.timestamp.cmp(&timestamp)

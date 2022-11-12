@@ -1,3 +1,5 @@
+use std::time::{Instant, Duration};
+
 use super::data::{RPlaceDataIterator, RPlaceDataReader};
 use super::pixel::PixelColor;
 use super::search::{RPlaceDataset, self};
@@ -81,6 +83,8 @@ impl Canvas {
 
 impl Canvas {
     pub fn adjust_timestamp(&mut self, delta: i64) {
+        let start_time = Instant::now();
+        let mut search_duration = Duration::from_secs(0);
         let mut new_timestamp = self.timestamp as i64 + delta;
         if new_timestamp > self.max_timestamp as i64 {
             new_timestamp = self.max_timestamp as i64;
@@ -93,13 +97,21 @@ impl Canvas {
             for x in 0..self.width() as usize {
                 // TODO: optimize indices
                 let end_idx = self.dataset.data[y][x].len();
-                let search_idx = self.dataset.search(new_timestamp as u64, x, y, 0, end_idx);
+                let start_time = Instant::now();
+                let search_idx = match new_timestamp - (self.timestamp as i64) {
+                    1_i64..=i64::MAX => self.dataset.search(new_timestamp as u64, x, y, self.pixels_idx[y][x], end_idx),
+                    i64::MIN..=-1_i64 => self.dataset.search(new_timestamp as u64, x, y, 0, self.pixels_idx[y][x] + 1),
+                    0 => self.pixels_idx[y][x],
+                };
+                search_duration += start_time.elapsed();
                 let datapoint = &self.dataset.data[y][x][search_idx];
                 self.pixels[y][x] = datapoint.color;
                 self.pixels_idx[y][x] = search_idx;
             }
         }
         self.timestamp = new_timestamp as u64;
+        let duration = start_time.elapsed();
+        println!("adjust_timestamp duration: {}ms. search duration {}ms, diff {}ms", duration.as_millis(), search_duration.as_millis(), (duration - search_duration).as_millis());
     }
 
     pub fn display_size(&self) -> Vector2<f32> {

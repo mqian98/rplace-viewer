@@ -1,4 +1,5 @@
 use min_max::min;
+use std::time::Instant;
 use crate::rplace::pixel::basic_pixel_pattern;
 
 use super::display::GraphicsHelper;
@@ -171,8 +172,11 @@ impl WindowHandler for RedditPlaceWindowHandler
 
     fn on_draw(&mut self, _helper: &mut WindowHelper, graphics: &mut Graphics2D)
     {
+        let start_time = Instant::now();
         graphics.clear_screen(Color::from_rgb(0.0, 0.0, 0.0));
         self.draw_pixels(graphics, None); //, Some(PixelColor::Black));
+        let duration = start_time.elapsed();
+        println!("on_draw duration: {}ms", duration.as_millis());
     }
 }
 
