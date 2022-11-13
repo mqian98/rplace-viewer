@@ -60,7 +60,12 @@ impl WindowHandler for RedditPlaceWindowHandler
         
         self.graphics_helper.display_size = *info.viewport_size_pixels();
         self.graphics_helper.scale_factor = info.scale_factor() as f32;
-        println!("display_size={:?}, scale_factor={:?}", self.graphics_helper.display_size, self.graphics_helper.scale_factor);
+
+        let canvas_display_size = min!(self.graphics_helper.display_width(), self.graphics_helper.display_height()) as f32;
+        self.graphics_helper.canvas.top_left = Vector2::new_x((self.graphics_helper.display_width() as f32 - canvas_display_size) / 2.0);
+        self.graphics_helper.canvas.pixel_size = canvas_display_size / self.graphics_helper.canvas.pixels.len() as f32 * 2.0; // NOTE: only multiplying by 2 because at the start we only need to display 1000x1000 
+
+        println!("display_size={:?}, scale_factor={:?}, top_left={:?}, pixel_size={:?}", self.graphics_helper.display_size, self.graphics_helper.scale_factor, self.graphics_helper.canvas.top_left, self.graphics_helper.canvas.pixel_size);
         println!("WindowHandler size {:?}", std::mem::size_of_val(self));
     }
 
@@ -109,12 +114,12 @@ impl WindowHandler for RedditPlaceWindowHandler
             },
             Some(VirtualKeyCode::J) => {
                 let delta = -100_000_000_000;
-                self.graphics_helper.canvas.adjust_timestamp(delta);
+                self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::L) => {
                 let delta = 100_000_000_000;
-                self.graphics_helper.canvas.adjust_timestamp(delta);
+                self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
             _ => (),
@@ -198,7 +203,7 @@ impl RedditPlaceWindowHandler {
 
         let total_canvas_pixels = self.graphics_helper.num_rectangles_to_redraw();
         let total_display_pixels = total_canvas_pixels as f32 * self.graphics_helper.canvas.pixel_size;
-        println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {}", x1, x2, y1, y2, total_canvas_pixels, total_display_pixels);
+        println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
         for y in y1..y2 {
             for x in x1..x2 {
                 let color = self.graphics_helper.canvas.pixels[y][x];

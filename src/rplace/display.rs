@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use min_max::min;
 use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
@@ -8,12 +10,17 @@ pub struct GraphicsHelper {
     pub canvas: Canvas,
     pub display_size: Vector2<u32>,
     pub scale_factor: f32,
+    pub timestamp: u64,
 }
 
 impl GraphicsHelper {
     pub fn new(canvas: Canvas) -> GraphicsHelper {
+        let timestamp = canvas.max_timestamp;
         GraphicsHelper {
             canvas,
+            timestamp,
+
+            // default values
             display_size: Vector2::ZERO,
             scale_factor: 0.0,
         }
@@ -21,6 +28,19 @@ impl GraphicsHelper {
 }
 
 impl GraphicsHelper {
+    pub fn adjust_timestamp(&mut self, delta: i64) {
+        let mut new_timestamp = self.timestamp as i64 + delta;
+        if new_timestamp > self.canvas.max_timestamp as i64 {
+            new_timestamp = self.canvas.max_timestamp as i64;
+        }
+        if new_timestamp < 0 {
+            new_timestamp = 0;
+        }
+        
+        self.canvas.adjust_timestamp(new_timestamp);
+        self.timestamp = new_timestamp as u64;
+    }
+
     pub fn display_width(&self) -> u32 {
         return self.display_size.x;
     }

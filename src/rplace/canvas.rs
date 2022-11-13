@@ -13,7 +13,7 @@ pub struct Canvas {
     pub min_pixel_size: f32,
     pub top_left: Vector2<f32>,
     pub dataset: RPlaceDataset,
-    pub timestamp: u64,
+    pub timestamp: Vec<Vec<u64>>,
     pub max_timestamp: u64,
 }
 
@@ -28,7 +28,7 @@ impl Canvas {
             min_pixel_size: 0.5,
             top_left: Vector2::ZERO,
             dataset: RPlaceDataset::new_with_initial_datapoint(size),
-            timestamp: 0,
+            timestamp: vec![vec![0; size]; size],
             max_timestamp: 0,
         }
     }
@@ -45,7 +45,7 @@ impl Canvas {
             min_pixel_size: 0.5,
             top_left: Vector2::ZERO,
             pixels_idx: vec![vec![0; size]; size],
-            timestamp: 0,
+            timestamp: vec![vec![0; size]; size],
             max_timestamp: 0,
         }
     }
@@ -75,43 +75,43 @@ impl Canvas {
             self.pixels[y][x] = record.color;
             self.dataset.add(record, x, y);
             self.pixels_idx[y][x] = self.dataset.data[y][x].len() - 1;
-            self.timestamp = record.timestamp;
+            self.timestamp[y][x] = record.timestamp;
             self.max_timestamp = record.timestamp;
         }
     }
 }
 
 impl Canvas {
-    pub fn adjust_timestamp(&mut self, delta: i64) {
+    pub fn adjust_timestamp(&mut self, timestamp: i64) {
         let start_time = Instant::now();
         let mut search_duration = Duration::from_secs(0);
-        let mut new_timestamp = self.timestamp as i64 + delta;
-        if new_timestamp > self.max_timestamp as i64 {
-            new_timestamp = self.max_timestamp as i64;
-        }
-        if new_timestamp < 0 {
-            new_timestamp = 0;
-        }
-        println!("Setting canvas timestamp from {} to {}", self.timestamp, new_timestamp);
+
         for y in 0..self.height() as usize {
             for x in 0..self.width() as usize {
-                // TODO: optimize indices
                 let end_idx = self.dataset.data[y][x].len();
                 let start_time = Instant::now();
-                let search_idx = match new_timestamp - (self.timestamp as i64) {
-                    1_i64..=i64::MAX => self.dataset.search(new_timestamp as u64, x, y, self.pixels_idx[y][x], end_idx),
-                    i64::MIN..=-1_i64 => self.dataset.search(new_timestamp as u64, x, y, 0, self.pixels_idx[y][x] + 1),
+                let search_idx = match timestamp - (self.timestamp[y][x] as i64) {
+                    1_i64..=i64::MAX => self.pixels_idx[y][x] + self.dataset.search(timestamp as u64, 
+                                                                                    x, y, 
+                                                                                    self.pixels_idx[y][x], 
+                                                                                    end_idx),
+                    i64::MIN..=-1_i64 => self.dataset.search(timestamp as u64, 
+                                                             x, y, 
+                                                             0, 
+                                                             self.pixels_idx[y][x] + 1),
                     0 => self.pixels_idx[y][x],
                 };
+
                 search_duration += start_time.elapsed();
                 let datapoint = &self.dataset.data[y][x][search_idx];
                 self.pixels[y][x] = datapoint.color;
                 self.pixels_idx[y][x] = search_idx;
+                self.timestamp[y][x] = datapoint.timestamp;
             }
         }
-        self.timestamp = new_timestamp as u64;
+
         let duration = start_time.elapsed();
-        println!("adjust_timestamp duration: {}ms. search duration {}ms, diff {}ms", duration.as_millis(), search_duration.as_millis(), (duration - search_duration).as_millis());
+        println!("adjust_timestamp duration: {}ms. search duration {}ms, diff {}ms, timestamp {}", duration.as_millis(), search_duration.as_millis(), (duration - search_duration).as_millis(), timestamp);
     }
 
     pub fn display_size(&self) -> Vector2<f32> {
