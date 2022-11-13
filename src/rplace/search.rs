@@ -9,6 +9,7 @@ pub struct RPlaceDataset {
 }
 
 impl RPlaceDataset {
+    // creates a dataset where the first datapoint per pixel is sentinel
     pub fn new_with_initial_datapoint(size: usize) -> RPlaceDataset {
         let mut data = Vec::new();
         for y in 0..size {

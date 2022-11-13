@@ -1,3 +1,4 @@
+use std::ops::Range;
 use std::time::{Instant, Duration};
 
 use super::data::{RPlaceDataIterator, RPlaceDataReader};
@@ -14,6 +15,7 @@ pub struct Canvas {
     pub top_left: Vector2<f32>,
     pub dataset: RPlaceDataset,
     pub timestamp: Vec<Vec<u64>>,
+    pub min_timestamp: u64,
     pub max_timestamp: u64,
 }
 
@@ -29,6 +31,7 @@ impl Canvas {
             top_left: Vector2::ZERO,
             dataset: RPlaceDataset::new_with_initial_datapoint(size),
             timestamp: vec![vec![0; size]; size],
+            min_timestamp: 0,
             max_timestamp: 0,
         }
     }
@@ -46,6 +49,7 @@ impl Canvas {
             top_left: Vector2::ZERO,
             pixels_idx: vec![vec![0; size]; size],
             timestamp: vec![vec![0; size]; size],
+            min_timestamp: 0,
             max_timestamp: 0,
         }
     }
@@ -63,10 +67,18 @@ impl Canvas {
 
     fn load_pixels(&mut self, reader: RPlaceDataReader) {
         // TODO: Magic number - make limit an optional parameter
-        let limit = 100000;
+        let limit = 1_000_000;
         for (i, record) in reader.into_iter().take(limit).enumerate() {
-            if i == 0 || i == limit - 1 {
+            if i == 0 {
                 println!("Reading datapoint {}: {:?}", i, record);
+                
+                // set min_timestamp to be one less than the smallest timestamp in the dataset
+                self.min_timestamp = record.timestamp - 1;
+                for j in 0..self.dataset.data.len() {
+                    for k in 0..self.dataset.data[j].len() {
+                        self.dataset.data[j][k][0].timestamp = self.min_timestamp;
+                    }
+                }
             } 
 
             let x = record.coordinate.x as usize;
@@ -82,12 +94,12 @@ impl Canvas {
 }
 
 impl Canvas {
-    pub fn adjust_timestamp(&mut self, timestamp: i64) {
+    pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
         let mut search_duration = Duration::from_secs(0);
 
-        for y in 0..self.height() as usize {
-            for x in 0..self.width() as usize {
+        for y in y1..y2 {
+            for x in x1..x2 {
                 let end_idx = self.dataset.data[y][x].len();
                 let start_time = Instant::now();
                 let search_idx = match timestamp - (self.timestamp[y][x] as i64) {

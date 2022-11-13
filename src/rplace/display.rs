@@ -33,11 +33,12 @@ impl GraphicsHelper {
         if new_timestamp > self.canvas.max_timestamp as i64 {
             new_timestamp = self.canvas.max_timestamp as i64;
         }
-        if new_timestamp < 0 {
-            new_timestamp = 0;
+        if new_timestamp < self.canvas.min_timestamp as i64  {
+            new_timestamp = self.canvas.min_timestamp as i64;
         }
         
-        self.canvas.adjust_timestamp(new_timestamp);
+        let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
+        self.canvas.adjust_timestamp(new_timestamp, x1, x2, y1, y2);
         self.timestamp = new_timestamp as u64;
     }
 

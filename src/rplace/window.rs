@@ -81,26 +81,32 @@ impl WindowHandler for RedditPlaceWindowHandler
             Some(VirtualKeyCode::Q) | Some(VirtualKeyCode::Escape) => exit(0),
             Some(VirtualKeyCode::Up) => {
                 self.zoom_into_center_of_display(0.5);
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::Down) => {
                 self.zoom_into_center_of_display(-0.5);
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::W) => {
                 self.graphics_helper.canvas.top_left.y += self.keypress_move_distance();
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::A) => {
                 self.graphics_helper.canvas.top_left.x += self.keypress_move_distance();
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::S) => {
                 self.graphics_helper.canvas.top_left.y -= self.keypress_move_distance();
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::D) => {
                 self.graphics_helper.canvas.top_left.x -= self.keypress_move_distance();
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::C) => {
@@ -136,6 +142,7 @@ impl WindowHandler for RedditPlaceWindowHandler
                 let zoom = -1.0 * y as f32;
                 println!("on_mouse_wheel_scroll {:?}", zoom);
                 self.zoom_into_mouse_location(zoom); 
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
             _ => (),
@@ -150,6 +157,7 @@ impl WindowHandler for RedditPlaceWindowHandler
             
             // only redraw on mouse drag if amount of pixels to redraw is low
             if self.graphics_helper.num_rectangles_to_redraw() < self.realtime_redraw_rectangle_threshold {
+                self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             }
         }
@@ -172,6 +180,7 @@ impl WindowHandler for RedditPlaceWindowHandler
         ) {
         println!("on_mouse_button_down {:?}", button);
         self.is_mouse_pressed = false;
+        self.graphics_helper.adjust_timestamp(0);
         helper.request_redraw();
     }
 
