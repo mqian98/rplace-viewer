@@ -22,6 +22,8 @@ pub struct RedditPlaceWindowHandler {
 
 impl RedditPlaceWindowHandler {
     pub fn new(file_path: &str, size: usize) -> RedditPlaceWindowHandler {
+        let start_time = Instant::now();
+
         let canvas = match Canvas::new_with_file_path(file_path, size) {
             Some(canvas) => {
                 canvas
@@ -32,6 +34,8 @@ impl RedditPlaceWindowHandler {
             }
         };
 
+        let duration = start_time.elapsed();
+        println!("RedditPlaceWindowHandler init time {:?}", duration);
         RedditPlaceWindowHandler::new_with_canvas(canvas)
     }
 
@@ -119,12 +123,12 @@ impl WindowHandler for RedditPlaceWindowHandler
                 println!("{:?}", self);
             },
             Some(VirtualKeyCode::J) => {
-                let delta = -100_000_000_000;
+                let delta = -1_000_000_000_000;
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::L) => {
-                let delta = 100_000_000_000;
+                let delta = 1_000_000_000_000;
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },

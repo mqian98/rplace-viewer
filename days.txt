@@ -1,0 +1,4 @@
+Iterating data
+Start | At 0 lines | Duration - 180.023958ms
+Day 2 | At 28201610 lines | RPlaceDatapoint { timestamp: 1648916696239000000, user_id: 367185, color: Black, coordinate: Vector2 { x: 1007.0, y: 491.0 }, is_mod: false }
+Day 3 | At 71784347 lines | RPlaceDatapoint { timestamp: 1649012633356000000, user_id: 230325, color: Grey, coordinate: Vector2 { x: 1338.0, y: 1267.0 }, is_mod: false }

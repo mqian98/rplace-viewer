@@ -67,7 +67,11 @@ impl Canvas {
 
     fn load_pixels(&mut self, reader: RPlaceDataReader) {
         // TODO: Magic number - make limit an optional parameter
-        let limit = 1_000_000;
+        // day 2 start: 28_201_610
+        // day 3 start: 71_784_347
+        // end: 170_000_000
+        let limit = 10_000_000;
+        let print_frequency = 1_000_000;
         for (i, record) in reader.into_iter().take(limit).enumerate() {
             if i == 0 {
                 println!("Reading datapoint {}: {:?}", i, record);
@@ -81,6 +85,10 @@ impl Canvas {
                 }
             } 
 
+            if i % print_frequency == 0 {
+                println!("Reading datapoint {}: {:?}", i, record);
+            }
+            
             let x = record.coordinate.x as usize;
             let y = record.coordinate.y as usize;
 
@@ -96,25 +104,30 @@ impl Canvas {
 impl Canvas {
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut search_duration = Duration::from_secs(0);
-
+        let mut search_iterations = 0.0;
+        let mut unchanged_idx_count = 0;
         for y in y1..y2 {
             for x in x1..x2 {
-                let end_idx = self.dataset.data[y][x].len();
-                let start_time = Instant::now();
                 let search_idx = match timestamp - (self.timestamp[y][x] as i64) {
-                    1_i64..=i64::MAX => self.pixels_idx[y][x] + self.dataset.search(timestamp as u64, 
-                                                                                    x, y, 
-                                                                                    self.pixels_idx[y][x], 
-                                                                                    end_idx),
-                    i64::MIN..=-1_i64 => self.dataset.search(timestamp as u64, 
-                                                             x, y, 
-                                                             0, 
-                                                             self.pixels_idx[y][x] + 1),
+                    1_i64..=i64::MAX => {
+                        let start_idx = self.pixels_idx[y][x];
+                        let end_idx = self.dataset.data[y][x].len();
+                        search_iterations += ((end_idx - start_idx) as f32).log2();
+                        self.pixels_idx[y][x] + self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                    },
+                    i64::MIN..=-1_i64 => {
+                        let start_idx = 0;
+                        let end_idx = self.pixels_idx[y][x] + 1;
+                        search_iterations += ((end_idx - start_idx) as f32).log2();
+                        self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                    },
                     0 => self.pixels_idx[y][x],
                 };
 
-                search_duration += start_time.elapsed();
+                if search_idx == self.pixels_idx[y][x] {
+                    unchanged_idx_count += 1;
+                }
+
                 let datapoint = &self.dataset.data[y][x][search_idx];
                 self.pixels[y][x] = datapoint.color;
                 self.pixels_idx[y][x] = search_idx;
@@ -123,7 +136,7 @@ impl Canvas {
         }
 
         let duration = start_time.elapsed();
-        println!("adjust_timestamp duration: {}ms. search duration {}ms, diff {}ms, timestamp {}", duration.as_millis(), search_duration.as_millis(), (duration - search_duration).as_millis(), timestamp);
+        println!("adjust_timestamp duration: {}ms. search-iterations {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations, unchanged_idx_count, timestamp);
     }
 
     pub fn display_size(&self) -> Vector2<f32> {

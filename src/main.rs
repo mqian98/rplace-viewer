@@ -41,6 +41,8 @@ fn iterate_data(file_path: &str) {
     let mut history = 0;
     let limit = 170_000_000;
     let mut start_time = Instant::now();
+    let mut found_day2 = false;
+    let mut found_day3 = false;
     //let mut dataset = RPlaceDataset::empty(size);
     let mut counter = RPlaceDataCounter::empty(size);
     if let Some(reader) = RPlaceDataReader::new(file_path){
@@ -48,8 +50,18 @@ fn iterate_data(file_path: &str) {
         for datapoint in iterator.take(limit) {
             if history % 1000000 == 0 {
                 let duration = start_time.elapsed();
-                println!("At {} lines | Duration - {:?}", history, duration);
+                println!("Start | At {} lines | Duration - {:?}", history, duration);
                 start_time = Instant::now();
+            }
+
+            if !found_day2 && datapoint.coordinate.x >= 1000.0 {
+                found_day2 = true;
+                println!("Day 2 | At {} lines | {:?}", history, datapoint);
+            }
+
+            if !found_day3 && datapoint.coordinate.y >= 1000.0 {
+                found_day3 = true;
+                println!("Day 3 | At {} lines | {:?}", history, datapoint);
             }
 
             //dataset.add(datapoint, datapoint.coordinate.x as usize, datapoint.coordinate.y as usize);
