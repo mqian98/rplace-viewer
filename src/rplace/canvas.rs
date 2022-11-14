@@ -104,39 +104,41 @@ impl Canvas {
 impl Canvas {
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut search_iterations = 0.0;
+        let mut search_iterations_lesser = 0.0;
+        let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
         for y in y1..y2 {
             for x in x1..x2 {
+                let current_idx = self.pixels_idx[y][x];
                 let search_idx = match timestamp - (self.timestamp[y][x] as i64) {
                     1_i64..=i64::MAX => {
-                        let start_idx = self.pixels_idx[y][x];
+                        let start_idx = current_idx;
                         let end_idx = self.dataset.data[y][x].len();
-                        search_iterations += ((end_idx - start_idx) as f32).log2();
-                        self.pixels_idx[y][x] + self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                        search_iterations_greater += ((end_idx - start_idx) as f32).log2();
+                        current_idx + self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
                     },
                     i64::MIN..=-1_i64 => {
                         let start_idx = 0;
-                        let end_idx = self.pixels_idx[y][x] + 1;
-                        search_iterations += ((end_idx - start_idx) as f32).log2();
+                        let end_idx = current_idx + 1;
+                        search_iterations_lesser += ((end_idx - start_idx) as f32).log2();
                         self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
                     },
-                    0 => self.pixels_idx[y][x],
+                    0 => current_idx,
                 };
 
-                if search_idx == self.pixels_idx[y][x] {
+                if search_idx == current_idx {
                     unchanged_idx_count += 1;
                 }
 
                 let datapoint = &self.dataset.data[y][x][search_idx];
                 self.pixels[y][x] = datapoint.color;
                 self.pixels_idx[y][x] = search_idx;
-                self.timestamp[y][x] = datapoint.timestamp;
+                self.timestamp[y][x] = timestamp as u64; //datapoint.timestamp;
             }
         }
 
         let duration = start_time.elapsed();
-        println!("adjust_timestamp duration: {}ms. search-iterations {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations, unchanged_idx_count, timestamp);
+        println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, timestamp);
     }
 
     pub fn display_size(&self) -> Vector2<f32> {
