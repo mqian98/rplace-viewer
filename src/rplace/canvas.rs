@@ -6,15 +6,30 @@ use super::pixel::PixelColor;
 use super::search::{RPlaceDataset, self};
 use speedy2d::dimen::Vector2;
 
+#[derive(Debug, Clone, Copy)]
+pub struct CanvasPixel {
+    pub color: PixelColor,
+    pub datapoint_history_idx: usize,
+    pub timestamp: u64,
+}
+
+impl CanvasPixel {
+    pub fn new_with_color(color: PixelColor) -> CanvasPixel {
+        CanvasPixel {
+            color,
+            datapoint_history_idx: 0,
+            timestamp: 0,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Canvas {
-    pub pixels: Vec<Vec<PixelColor>>,
-    pub pixels_idx: Vec<Vec<usize>>,
+    pub pixels: Vec<Vec<CanvasPixel>>,
     pub pixel_size: f32,
     pub min_pixel_size: f32,
     pub top_left: Vector2<f32>,
     pub dataset: RPlaceDataset,
-    pub timestamp: Vec<Vec<u64>>,
     pub min_timestamp: u64,
     pub max_timestamp: u64,
 }
@@ -22,22 +37,21 @@ pub struct Canvas {
 // Initialization 
 impl Canvas {
     pub fn empty(size: usize, default_color: PixelColor) -> Canvas {
+        let default_pixel = CanvasPixel::new_with_color(default_color);
         Canvas {
             // TODO: Replace this with the RPlaceDataset and add another matrix of current frame's indicies 
-            pixels: vec![vec![default_color; size]; size],
-            pixels_idx: vec![vec![0; size]; size],
+            pixels: vec![vec![default_pixel; size]; size],
             pixel_size: 1.0,
             min_pixel_size: 0.5,
             top_left: Vector2::ZERO,
             dataset: RPlaceDataset::new_with_initial_datapoint(size),
-            timestamp: vec![vec![0; size]; size],
             min_timestamp: 0,
             max_timestamp: 0,
         }
     }
 
     // inits a new Canvas aligned at display=(0,0) 
-    pub fn new_with_pixels(pixels: Vec<Vec<PixelColor>>) -> Canvas {
+    pub fn new_with_pixels(pixels: Vec<Vec<CanvasPixel>>) -> Canvas {
         let size = pixels.len();
         Canvas {
             pixels,
@@ -47,8 +61,6 @@ impl Canvas {
             pixel_size: 1.0,
             min_pixel_size: 0.5,
             top_left: Vector2::ZERO,
-            pixels_idx: vec![vec![0; size]; size],
-            timestamp: vec![vec![0; size]; size],
             min_timestamp: 0,
             max_timestamp: 0,
         }
@@ -92,10 +104,12 @@ impl Canvas {
             let x = record.coordinate.x as usize;
             let y = record.coordinate.y as usize;
 
-            self.pixels[y][x] = record.color;
+            let pixel = &mut self.pixels[y][x];
+            pixel.color = record.color;
+            pixel.datapoint_history_idx = self.dataset.data[y][x].len() - 1;
+            pixel.timestamp = record.timestamp;
+
             self.dataset.add(record, x, y);
-            self.pixels_idx[y][x] = self.dataset.data[y][x].len() - 1;
-            self.timestamp[y][x] = record.timestamp;
             self.max_timestamp = record.timestamp;
         }
     }
@@ -109,8 +123,9 @@ impl Canvas {
         let mut unchanged_idx_count = 0;
         for y in y1..y2 {
             for x in x1..x2 {
-                let current_idx = self.pixels_idx[y][x];
-                let search_idx = match timestamp - (self.timestamp[y][x] as i64) {
+                let pixel = &mut self.pixels[y][x];
+                let current_idx = pixel.datapoint_history_idx;
+                let search_idx = match timestamp - (pixel.timestamp as i64) {
                     1_i64..=i64::MAX => {
                         let start_idx = current_idx;
                         let end_idx = self.dataset.data[y][x].len();
@@ -131,9 +146,9 @@ impl Canvas {
                 }
 
                 let datapoint = &self.dataset.data[y][x][search_idx];
-                self.pixels[y][x] = datapoint.color;
-                self.pixels_idx[y][x] = search_idx;
-                self.timestamp[y][x] = timestamp as u64; //datapoint.timestamp;
+                pixel.color = datapoint.color;
+                pixel.datapoint_history_idx = search_idx;
+                pixel.timestamp = timestamp as u64; //datapoint.timestamp;
             }
         }
 

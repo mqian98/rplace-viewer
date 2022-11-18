@@ -219,7 +219,7 @@ impl RedditPlaceWindowHandler {
         println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
         for y in y1..y2 {
             for x in x1..x2 {
-                let color = self.graphics_helper.canvas.pixels[y][x];
+                let color = self.graphics_helper.canvas.pixels[y][x].color;
                 if Some(color) == ignore_color {
                     continue;
                 }

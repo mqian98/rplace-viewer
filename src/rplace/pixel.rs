@@ -1,6 +1,8 @@
 use strum::{IntoEnumIterator, EnumCount};
 use strum_macros::{EnumIter, EnumCount};
 
+use super::canvas::CanvasPixel;
+
 #[derive(Clone, Copy, Debug, EnumIter, EnumCount, PartialEq, Eq)]
 pub enum PixelColor {
     Maroon, // #6d001a
@@ -144,15 +146,15 @@ impl From<PixelColor> for speedy2d::color::Color {
     }
 }
 
-pub fn basic_pixel_pattern() -> Vec<Vec<PixelColor>> {
-    let mut pixels : Vec<Vec<PixelColor>> = Vec::new();
+pub fn basic_pixel_pattern() -> Vec<Vec<CanvasPixel>> {
+    let mut pixels : Vec<Vec<CanvasPixel>> = Vec::new();
     for i in 0..PixelColor::COUNT {
-        let mut row: Vec<PixelColor> = Vec::new();
+        let mut row: Vec<CanvasPixel> = Vec::new();
         for p in PixelColor::iter() {
-            row.push(p);
+            row.push(CanvasPixel::new_with_color(p));
         }
         
-        let mut rotated: Vec<PixelColor> = row.clone();
+        let mut rotated: Vec<CanvasPixel> = row.clone();
         for j in 0..PixelColor::COUNT {
             rotated[(i + j) % PixelColor::COUNT] = row[j];
         }
