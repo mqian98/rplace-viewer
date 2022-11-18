@@ -132,18 +132,19 @@ impl Canvas {
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
         let mut sliced_graph: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
         let mut double_sliced_graph: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
-        for i in 0..sliced_graph.len() {
-            unsafe {
-                //sliced_graph[i] = slice::from_raw_parts_mut(sliced_graph[i].as_mut_ptr().offset(x1 as isize), x2-x1);
-                println!("sliced {} {}", sliced_graph.len(), sliced_graph[i].len());
+        for rows in sliced_graph {
+            let mut slices: Vec<&mut [CanvasPixel]> = Vec::new();
+            for row in rows {
+                slices.push(&mut row[x1..x2]);
             }
+            double_sliced_graph.push(slices);
         }
 
         type CanvasThreadOutput = (usize, f32, f32, i32);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
         let dataset = Arc::new(&self.dataset);
         thread::scope(|scope| {
-            for (n_th, slice) in sliced_graph.iter_mut().enumerate() {
+            for (n_th, slice) in double_sliced_graph.iter_mut().enumerate() {
                 let thread_tx = tx.clone();
                 let thread_dataset = dataset.clone();
                 scope.spawn(move || {
@@ -154,7 +155,7 @@ impl Canvas {
                     for (row_idx, row) in slice.into_iter().enumerate() {
                         let y = n_th * chunk + row_idx + y1;
                         for (col_idx, pixel) in row.into_iter().enumerate() {
-                            let x = col_idx; // TODO: add by x1
+                            let x = col_idx + x1; 
                             let current_idx = pixel.datapoint_history_idx;
                             let search_idx = match timestamp - (pixel.timestamp as i64) {
                                 1_i64..=i64::MAX => {
