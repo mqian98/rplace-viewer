@@ -85,7 +85,7 @@ impl Canvas {
         // day 2 start: 28_201_610
         // day 3 start: 71_784_347
         // end: 170_000_000
-        let limit = 1_000_000;
+        let limit = 10_000_000;
         let print_frequency = 1_000_000;
         for (i, record) in reader.into_iter().take(limit).enumerate() {
             if i == 0 {

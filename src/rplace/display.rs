@@ -89,14 +89,14 @@ impl GraphicsHelper {
         let x1 = f32::max(
             0.0, 
             -1.0 * top_left / self.canvas.pixel_size
-        ).floor() as usize;
+        );
         let x2 = min!(
             canvas_length as usize,
-            x1 + (display_length as f32 / self.canvas.pixel_size).ceil() as usize, 
-            x1 + (top_left / self.canvas.pixel_size + canvas_length as f32).ceil() as usize
+            (x1 + display_length as f32 / self.canvas.pixel_size).ceil() as usize, 
+            (x1 + top_left / self.canvas.pixel_size + canvas_length as f32).ceil() as usize
         );
 
-        return (x1, x2);
+        return (x1.floor() as usize, x2);
     }
 
     pub fn pixel_index_bounds_2d(&self) -> (usize, usize, usize, usize) {
