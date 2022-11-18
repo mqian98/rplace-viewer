@@ -130,21 +130,21 @@ impl Canvas {
 
         let n_threads = 8;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
-        let mut sliced_graph: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
-        let mut double_sliced_graph: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
-        for rows in sliced_graph {
+        let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
+        let mut xy_sliced_canvas: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
+        for rows in y_chunked_canvas {
             let mut slices: Vec<&mut [CanvasPixel]> = Vec::new();
             for row in rows {
                 slices.push(&mut row[x1..x2]);
             }
-            double_sliced_graph.push(slices);
+            xy_sliced_canvas.push(slices);
         }
 
         type CanvasThreadOutput = (usize, f32, f32, i32);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
         let dataset = Arc::new(&self.dataset);
         thread::scope(|scope| {
-            for (n_th, slice) in double_sliced_graph.iter_mut().enumerate() {
+            for (n_th, slice) in xy_sliced_canvas.iter_mut().enumerate() {
                 let thread_tx = tx.clone();
                 let thread_dataset = dataset.clone();
                 scope.spawn(move || {
@@ -189,7 +189,7 @@ impl Canvas {
             }
         });
 
-        for _ in 0..n_threads {
+        for _ in 0..xy_sliced_canvas.len() {
             let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count) = rx.recv().unwrap();
             search_iterations_lesser += thread_search_iterations_lesser;
             search_iterations_greater += thread_search_iterations_greater;
