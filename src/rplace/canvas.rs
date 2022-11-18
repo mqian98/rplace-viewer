@@ -1,4 +1,7 @@
 use std::ops::Range;
+use std::sync::Arc;
+use std::sync::mpsc::{Sender, Receiver, self};
+use std::{thread, slice};
 use std::time::{Instant, Duration};
 
 use super::data::{RPlaceDataIterator, RPlaceDataReader};
@@ -82,7 +85,7 @@ impl Canvas {
         // day 2 start: 28_201_610
         // day 3 start: 71_784_347
         // end: 170_000_000
-        let limit = 10_000_000;
+        let limit = 1_000_000;
         let print_frequency = 1_000_000;
         for (i, record) in reader.into_iter().take(limit).enumerate() {
             if i == 0 {
@@ -117,39 +120,60 @@ impl Canvas {
 
 impl Canvas {
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
+        // variables for speed metrics
         let start_time = Instant::now();
         let mut search_iterations_lesser = 0.0;
         let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
-        for y in y1..y2 {
-            for x in x1..x2 {
-                let pixel = &mut self.pixels[y][x];
-                let current_idx = pixel.datapoint_history_idx;
-                let search_idx = match timestamp - (pixel.timestamp as i64) {
-                    1_i64..=i64::MAX => {
-                        let start_idx = current_idx;
-                        let end_idx = self.dataset.data[y][x].len();
-                        search_iterations_greater += ((end_idx - start_idx) as f32).log2();
-                        current_idx + self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
-                    },
-                    i64::MIN..=-1_i64 => {
-                        let start_idx = 0;
-                        let end_idx = current_idx + 1;
-                        search_iterations_lesser += ((end_idx - start_idx) as f32).log2();
-                        self.dataset.search(timestamp as u64, x, y, start_idx, end_idx)
-                    },
-                    0 => current_idx,
-                };
 
-                if search_idx == current_idx {
-                    unchanged_idx_count += 1;
-                }
-
-                let datapoint = &self.dataset.data[y][x][search_idx];
-                pixel.color = datapoint.color;
-                pixel.datapoint_history_idx = search_idx;
-                pixel.timestamp = timestamp as u64; //datapoint.timestamp;
+        let n_threads = 8;
+        let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
+        let mut sliced_graph: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
+        for i in 0..sliced_graph.len() {
+            unsafe {
+                sliced_graph[i] = slice::from_raw_parts_mut(sliced_graph[i].as_mut_ptr().offset(x1 as isize), x2-x1);
             }
+        }
+
+        let (tx, rx): (Sender<i32>, Receiver<i32>) = mpsc::channel();
+        let dataset = Arc::new(&self.dataset);
+        thread::scope(|scope| {
+            for (n_th, slice) in sliced_graph.iter_mut().enumerate() {
+                let thread_tx = tx.clone();
+                let thread_dataset = dataset.clone();
+                scope.spawn(move || {
+                    for (row_idx, row) in slice.into_iter().enumerate() {
+                        for (col_idx, pixel) in row.into_iter().enumerate() {
+                            let (x, y) = (col_idx, n_th * chunk + row_idx);
+                            let current_idx = pixel.datapoint_history_idx;
+                            let search_idx = match timestamp - (pixel.timestamp as i64) {
+                                1_i64..=i64::MAX => {
+                                    let start_idx = current_idx;
+                                    let end_idx = thread_dataset.data[y][x].len();
+                                    current_idx + thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                                },
+                                i64::MIN..=-1_i64 => {
+                                    let start_idx = 0;
+                                    let end_idx = current_idx + 1;
+                                    thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                                },
+                                0 => current_idx,
+                            };
+            
+                            let datapoint = &thread_dataset.data[y][x][search_idx];
+                            pixel.color = datapoint.color;
+                            pixel.datapoint_history_idx = search_idx;
+                            pixel.timestamp = timestamp as u64; //datapoint.timestamp;
+                        }
+                    }
+
+                    thread_tx.send(n_th as i32);
+                });
+            }
+        });
+
+        for _ in 0..n_threads {
+            println!("Thread number: {:?} - Finished!", rx.recv());
         }
 
         let duration = start_time.elapsed();
