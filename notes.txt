@@ -1,0 +1,30 @@
+custom data format:
+
+metadata
+    - contains metadata of point
+    - 4_000_000 values
+    - determine which value by the offset in bytes 
+        - ex. point (x, y)'s metadata is located at y*sizeof(metadata_value)*metadata
+    - total size = 8 bytes * 4_000_000 = 32_000_000 bytes = 32 MB
+
+metadata_value
+    - offset u32
+    - length u32
+    - total size = 8 bytes
+
+dataset
+    - contains all datapoint histories in order
+        - first is history of (0, 0), then history of (0, 1), etc
+    - < 170_000_000 values 
+    - fetch value by using offset from metadata
+        - ex. point (x, y) has metadata_xy, then data is located at dataset[metadata_xy.offset*sizeof(datapoint), (metadata_xy.offset + metadata_xy.length)*sizeof(datapoint)]
+    - total size = 170_000_000 * 16 bytes = 2_720_000_000 bytes = 2.72 GB
+
+datapoint 
+    - timestamp u64
+    - user      u32
+    - color     u8
+    - mod       u8
+    - empty     u16
+    - total size = 16 bytes 
+

@@ -1,11 +1,13 @@
+use serde_repr::{Serialize_repr, Deserialize_repr};
 use strum::{IntoEnumIterator, EnumCount};
 use strum_macros::{EnumIter, EnumCount};
 
 use super::canvas::CanvasPixel;
 
-#[derive(Clone, Copy, Debug, EnumIter, EnumCount, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, EnumIter, EnumCount, PartialEq, Eq, Serialize_repr, Deserialize_repr,)]
+#[repr(u8)]
 pub enum PixelColor {
-    Maroon, // #6d001a
+    Maroon = 0, // #6d001a
     Red, // #be0039
     RedOrange, // #ff4500
     Orange, // #ffa800

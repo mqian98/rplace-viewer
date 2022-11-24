@@ -1,8 +1,5 @@
 use std::fmt;
-
-use std::ops::Range;
 use speedy2d::dimen::{Vec2, Vector2};
-
 use super::{pixel::PixelColor, reader::parquet::{RPlaceParquetDatapoint, RPlaceParquetDataReader, RPlaceParquetDataIterator}};
 
 // TODO: need to change this to custom type? maybe use u16 for size of coordinate but that can be confusing when doing math. 
@@ -29,18 +26,6 @@ impl Default for RPlaceDatapoint {
             user_id: 0, 
             color: PixelColor::Black, 
             coordinate: RPlaceCoordinate::new(0.0, 0.0), 
-            is_mod: false, 
-        }
-    }
-}
-
-impl RPlaceDatapoint {
-    pub fn start_for_coordinate(coordinate: RPlaceCoordinate) -> Self {
-        RPlaceDatapoint { 
-            timestamp: 0, 
-            user_id: 0, 
-            color: PixelColor::Black, 
-            coordinate, 
             is_mod: false, 
         }
     }

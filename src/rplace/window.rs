@@ -10,7 +10,7 @@ use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
 use speedy2d::Graphics2D;
 use speedy2d::window::{WindowHandler, WindowHelper, VirtualKeyCode, MouseScrollDistance};
-use super::canvas::{Canvas, self};
+use super::canvas::Canvas;
 
 #[derive(Debug)]
 pub struct RedditPlaceWindowHandler {

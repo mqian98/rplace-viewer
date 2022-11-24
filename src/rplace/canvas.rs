@@ -1,12 +1,11 @@
-use std::ops::Range;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, Receiver, self};
-use std::{thread, slice};
-use std::time::{Instant, Duration};
+use std::thread;
+use std::time::Instant;
 
-use super::data::{RPlaceDataIterator, RPlaceDataReader};
+use super::data::RPlaceDataReader;
 use super::pixel::PixelColor;
-use super::search::{RPlaceDataset, self};
+use super::search::RPlaceDataset;
 use speedy2d::dimen::Vector2;
 
 #[derive(Debug, Clone, Copy)]
@@ -112,7 +111,7 @@ impl Canvas {
             pixel.datapoint_history_idx = self.dataset.data[y][x].len() - 1;
             pixel.timestamp = record.timestamp;
 
-            self.dataset.add(record, x, y);
+            self.dataset.add(record.into(), x, y);
             self.max_timestamp = record.timestamp;
         }
     }

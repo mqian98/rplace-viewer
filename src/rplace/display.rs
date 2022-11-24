@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use min_max::min;
 use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
