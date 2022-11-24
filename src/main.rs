@@ -6,7 +6,7 @@ use speedy2d::Window;
 use rplace::{window::RedditPlaceWindowHandler, data::RPlaceDataReader};
 use strum::IntoEnumIterator;
 
-use crate::rplace::{search::RPlaceDatasetDatapoint, pixel::PixelColor};
+use crate::rplace::{dataset::RPlaceDatasetDatapoint, pixel::PixelColor};
 
 pub struct RPlaceDataCounter {
     pub counter: Vec<Vec<u32>>,

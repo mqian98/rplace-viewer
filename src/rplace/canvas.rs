@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use super::data::RPlaceDataReader;
 use super::pixel::PixelColor;
-use super::search::RPlaceDataset;
+use super::dataset::RPlaceDataset;
 use speedy2d::dimen::Vector2;
 
 #[derive(Debug, Clone, Copy)]
