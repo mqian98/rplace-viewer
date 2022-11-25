@@ -257,8 +257,8 @@ impl<'a> CompressedDatapointHistoryBytes<'a> {
 fn write_data_to_file(parquet_dataset_file_path: &str, output_file_path: &str) {
     // day 2 start: 28_201_610
     // day 3 start: 71_784_347
-    // end: 170_000_000
-    let limit = 1; // 10_000_000;
+    // end: 160_808_191
+    let limit = 160_808_191;
     let print_frequency = 1_000_000;
     let reader = RPlaceDataReader::new(parquet_dataset_file_path).unwrap();
     
@@ -268,6 +268,7 @@ fn write_data_to_file(parquet_dataset_file_path: &str, output_file_path: &str) {
     let mut min_timestamp: u64 = u64::MIN;
     let mut max_timestamp: u64 = u64::MAX;
 
+    let mut count: u64 = 0;
     for (i, record) in reader.into_iter().take(limit).enumerate() {
         if i == 0 {
             println!("Reading datapoint {}: {:?}", i, record);
@@ -289,7 +290,10 @@ fn write_data_to_file(parquet_dataset_file_path: &str, output_file_path: &str) {
         let y = record.coordinate.y as usize;
         dataset.add(record.into(), x, y);
         max_timestamp = record.timestamp;
+        count += 1;
     }
+
+    println!("Total datapoints: {}", count);
 
     // create compressed dataset variables 
     let mut compressed_dataset_metadata = CompressedDatasetMetadata {
@@ -375,6 +379,6 @@ fn main() {
     //iterate_data(file_path);
     //test_mmap();
     let compressed_data_file_path = "output";
-    //write_data_to_file(file_path, compressed_data_file_path);
+    write_data_to_file(file_path, compressed_data_file_path);
     read_data_from_compressed_file(compressed_data_file_path);
 }
