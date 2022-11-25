@@ -41,6 +41,11 @@ impl RPlaceDatasetDatapoint {
     pub fn from_bytes(bytes: &[u8]) -> Self {
         bincode::deserialize(bytes).unwrap()
     }
+
+    pub fn compressed_size() -> u8 {
+        let datapoint = RPlaceDatasetDatapoint::start();
+        datapoint.to_bytes().len() as u8
+    }
 }
 
 // Data is 2d matrix. Each element is a sorted array of edits for that pixel location
