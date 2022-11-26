@@ -6,13 +6,16 @@ use strum::IntoEnumIterator;
 
 use crate::rplace::{dataset::{RPlaceDatasetDatapoint, RPlaceDataset}, data::RPlaceDataReader, pixel::PixelColor};
 
+//const SERIALIZED_DATAPOINT_SIZE: u8 = 14;
+//assert_eq!(SERIALIZED_DATAPOINT_SIZE, RPlaceDatasetDatapoint::start().to_bytes().len() as u8);
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrecompressedDatasetMetadata {
-    canvas_width: u32,
-    canvas_height: u32,
-    min_timestamp: u64,
-    max_timestamp: u64,
-    datapoint_size: u8,
+    pub canvas_width: u32,
+    pub canvas_height: u32,
+    pub min_timestamp: u64,
+    pub max_timestamp: u64,
+    pub datapoint_size: u8,
     history_metadata: Vec<PrecompressedDatapointHistoryMetadata>,
 }
 
@@ -37,6 +40,11 @@ impl PrecompressedDatasetMetadata {
         let metadata = PrecompressedDatasetMetadata::new(canvas_size);
         metadata.to_bytes().len() as u64
     }
+
+    pub fn get(&self, x: u32, y: u32) -> &PrecompressedDatapointHistoryMetadata {
+        let idx = y * self.canvas_width + x;
+        &self.history_metadata[idx as usize]
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -56,9 +64,10 @@ pub struct PrecompressedDataset {
     data: PrecompressedDatasetData,
 }
 
+#[derive(Debug)]
 pub struct SerializedDataset {
     mmap: Mmap,
-    metadata: PrecompressedDatasetMetadata,
+    pub metadata: PrecompressedDatasetMetadata,
     data_start_idx: u64,
 }
 
@@ -93,6 +102,30 @@ impl SerializedDataset {
         //println!("fetching (x, y)=({} ,{}) from bytes {}..{} | metadata offset {} length {}", x, y, start_idx, end_idx, datapoint_history_metadata.offset, datapoint_history_metadata.length);
         self.mmap.get(start_idx as usize..end_idx as usize).unwrap()
     }
+
+    pub fn datapoint_history_len(&self, x: u32, y: u32) -> usize {
+        let metadata_idx = y * self.metadata.canvas_width + x;
+        let datapoint_history_metadata = &self.metadata.history_metadata[metadata_idx as usize];
+        datapoint_history_metadata.length as usize
+    }
+
+    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> (usize, RPlaceDatasetDatapoint) {
+        //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
+        let bytes_start_idx = start_idx*self.metadata.datapoint_size as usize;
+        let bytes_end_idx = end_idx*self.metadata.datapoint_size as usize;
+        let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes(x as u32, y as u32));
+        let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
+            datapoint_history.get(*idx).timestamp.cmp(&timestamp)
+        );
+
+        let mut index = start_idx;
+        match result {
+            Ok(value) => index += value,
+            Err(value) => index += value - 1,
+        }
+
+        (index, datapoint_history.get(index))
+    }
 }
 
 pub struct SerializedDatapointHistory<'a> {
@@ -107,6 +140,7 @@ impl<'a> SerializedDatapointHistory<'a> {
         let length = bytes.len() / datapoint_size as usize;
 
         // ensures that bytes is properly divisible by length w/ no remainder
+        //println!("datapoint_size {} / {} = {}", bytes.len(), datapoint_size, length);
         assert_eq!(bytes.len(), datapoint_size as usize * length);
 
         SerializedDatapointHistory {

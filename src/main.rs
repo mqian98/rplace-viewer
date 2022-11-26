@@ -80,11 +80,14 @@ fn iterate_data(file_path: &str) {
 }
 
 fn main() {
-    let file_path = "/Users/michaelqian/Projects/rplace/data/parquet/2022_place_deephaven.parquet";
+    let file_path = "/Users/michaelqian/Projects/rplace/data/custom/output_iter_160_808_191";
+    run_visualizer(file_path, 2000);
+    
+    //let file_path = "/Users/michaelqian/Projects/rplace/data/parquet/2022_place_deephaven.parquet";
     //run_visualizer(file_path, 2000);
     //iterate_data(file_path);
     //test_mmap();
-    let compressed_data_file_path = "output";
-    write_data_to_file(file_path, compressed_data_file_path);
-    read_data_from_compressed_file(compressed_data_file_path);
+    //let compressed_data_file_path = "output";
+    //write_data_to_file(file_path, compressed_data_file_path);
+    //read_data_from_compressed_file(compressed_data_file_path);
 }

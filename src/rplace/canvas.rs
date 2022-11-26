@@ -6,6 +6,8 @@ use std::time::Instant;
 use super::data::RPlaceDataReader;
 use super::pixel::PixelColor;
 use super::dataset::RPlaceDataset;
+use super::reader::custom::SerializedDataset;
+use min_max::max;
 use speedy2d::dimen::Vector2;
 
 #[derive(Debug, Clone, Copy)]
@@ -16,6 +18,14 @@ pub struct CanvasPixel {
 }
 
 impl CanvasPixel {
+    pub fn new(color: PixelColor, timestamp: u64) -> CanvasPixel {
+        CanvasPixel {
+            color,
+            datapoint_history_idx: 0,
+            timestamp,
+        }
+    }
+
     pub fn new_with_color(color: PixelColor) -> CanvasPixel {
         CanvasPixel {
             color,
@@ -31,88 +41,30 @@ pub struct Canvas {
     pub pixel_size: f32,
     pub min_pixel_size: f32,
     pub top_left: Vector2<f32>,
-    pub dataset: RPlaceDataset,
+    pub dataset: SerializedDataset,
     pub min_timestamp: u64,
     pub max_timestamp: u64,
 }
 
 // Initialization 
 impl Canvas {
-    pub fn empty(size: usize, default_color: PixelColor) -> Canvas {
-        let default_pixel = CanvasPixel::new_with_color(default_color);
+    pub fn new_with_file_path(file_path: &str) -> Canvas {
+        let dataset = SerializedDataset::new(file_path);
+        let min_timestamp = dataset.metadata.min_timestamp;
+        let max_timestamp = dataset.metadata.max_timestamp;
+        let default_pixel = CanvasPixel::new(PixelColor::Black, min_timestamp);
+
+        println!("Creatint Canvas | min_timestamp {} | max_timestamp {} | default_pixel {:?}", min_timestamp, max_timestamp, default_pixel);
+
         Canvas {
             // TODO: Replace this with the RPlaceDataset and add another matrix of current frame's indicies 
-            pixels: vec![vec![default_pixel; size]; size],
+            pixels: vec![vec![default_pixel; dataset.metadata.canvas_width as usize]; dataset.metadata.canvas_height as usize],
             pixel_size: 1.0,
             min_pixel_size: 0.5,
             top_left: Vector2::ZERO,
-            dataset: RPlaceDataset::new_with_initial_datapoint(size),
-            min_timestamp: 0,
-            max_timestamp: 0,
-        }
-    }
-
-    // inits a new Canvas aligned at display=(0,0) 
-    pub fn new_with_pixels(pixels: Vec<Vec<CanvasPixel>>) -> Canvas {
-        let size = pixels.len();
-        Canvas {
-            pixels,
-            dataset: RPlaceDataset::new_with_initial_datapoint(size),
-
-            // default these values to be specified at a later time by the caller
-            pixel_size: 1.0,
-            min_pixel_size: 0.5,
-            top_left: Vector2::ZERO,
-            min_timestamp: 0,
-            max_timestamp: 0,
-        }
-    }
-
-    pub fn new_with_file_path(file_path: &str, size: usize) -> Option<Canvas> {
-        if let Some(iter) = RPlaceDataReader::new(&file_path) {
-            println!("Successfully created Reddit data iterator {:?}", iter);
-            let mut canvas = Canvas::empty(size, PixelColor::Black);
-            canvas.load_pixels(iter);
-
-            return Some(canvas);
-        }
-        return None;
-    }
-
-    fn load_pixels(&mut self, reader: RPlaceDataReader) {
-        // TODO: Magic number - make limit an optional parameter
-        // day 2 start: 28_201_610
-        // day 3 start: 71_784_347
-        // end: 170_000_000
-        let limit = 10_000_000;
-        let print_frequency = 1_000_000;
-        for (i, record) in reader.into_iter().take(limit).enumerate() {
-            if i == 0 {
-                println!("Reading datapoint {}: {:?}", i, record);
-                
-                // set min_timestamp to be one less than the smallest timestamp in the dataset
-                self.min_timestamp = record.timestamp - 1;
-                for j in 0..self.dataset.data.len() {
-                    for k in 0..self.dataset.data[j].len() {
-                        self.dataset.data[j][k][0].timestamp = self.min_timestamp;
-                    }
-                }
-            } 
-
-            if i % print_frequency == 0 {
-                println!("Reading datapoint {}: {:?}", i, record);
-            }
-            
-            let x = record.coordinate.x as usize;
-            let y = record.coordinate.y as usize;
-
-            let pixel = &mut self.pixels[y][x];
-            pixel.color = record.color;
-            pixel.datapoint_history_idx = self.dataset.data[y][x].len() - 1;
-            pixel.timestamp = record.timestamp;
-
-            self.dataset.add(record.into(), x, y);
-            self.max_timestamp = record.timestamp;
+            dataset,
+            min_timestamp,
+            max_timestamp,
         }
     }
 }
@@ -127,7 +79,7 @@ impl Canvas {
         let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
 
-        let n_threads = 8;
+        let n_threads = 1; //8;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
         let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
         let mut xy_sliced_canvas: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
@@ -140,13 +92,14 @@ impl Canvas {
         }
 
         type CanvasThreadOutput = (usize, f32, f32, i32);
-        let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
-        let dataset = Arc::new(&self.dataset);
-        thread::scope(|scope| {
+        //let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
+        //let dataset = Arc::new(&self.dataset);
+        //thread::scope(|scope| {
             for (n_th, slice) in xy_sliced_canvas.iter_mut().enumerate() {
-                let thread_tx = tx.clone();
-                let thread_dataset = dataset.clone();
-                scope.spawn(move || {
+                // let thread_tx = tx.clone();
+                // let thread_dataset = dataset.clone();
+                // scope.spawn(move || {
+                let thread_dataset = &self.dataset;
                     let mut thread_search_iterations_lesser = 0.0;
                     let mut thread_search_iterations_greater = 0.0;
                     let mut thread_unchanged_idx_count = 0;
@@ -156,45 +109,48 @@ impl Canvas {
                         for (col_idx, pixel) in row.into_iter().enumerate() {
                             let x = col_idx + x1; 
                             let current_idx = pixel.datapoint_history_idx;
-                            let search_idx = match timestamp - (pixel.timestamp as i64) {
+                            let (start_idx, end_idx) = match timestamp - (pixel.timestamp as i64) {
                                 1_i64..=i64::MAX => {
                                     let start_idx = current_idx;
-                                    let end_idx = thread_dataset.data[y][x].len();
+                                    let end_idx = thread_dataset.datapoint_history_len(x as u32, y as u32);
                                     thread_search_iterations_greater += ((end_idx - start_idx) as f32).log2();
-                                    current_idx + thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                                    (start_idx, end_idx)
                                 },
                                 i64::MIN..=-1_i64 => {
                                     let start_idx = 0;
                                     let end_idx = current_idx + 1;
                                     thread_search_iterations_lesser += ((end_idx - start_idx) as f32).log2();
-                                    thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx)
+                                    (start_idx, end_idx)
                                 },
-                                0 => current_idx,
+                                0 => { 
+                                    thread_unchanged_idx_count += 1;
+                                    continue
+                                },
                             };
             
-                            if search_idx == current_idx {
-                                thread_unchanged_idx_count += 1;
-                            }
-            
-                            let datapoint = &thread_dataset.data[y][x][search_idx];
-                            pixel.color = datapoint.color;
+                            let (search_idx, search_datapoint) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx);
+
+                            pixel.color = search_datapoint.color;
                             pixel.datapoint_history_idx = search_idx;
                             pixel.timestamp = timestamp as u64; //datapoint.timestamp;
                         }
                     }
 
-                    thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count)).unwrap();
-                });
+                    search_iterations_lesser += thread_search_iterations_lesser;
+                    search_iterations_greater += thread_search_iterations_greater;
+                    unchanged_idx_count += thread_unchanged_idx_count;
+                    //thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count)).unwrap();
+                //});
             }
-        });
+        //});
 
-        for _ in 0..xy_sliced_canvas.len() {
-            let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count) = rx.recv().unwrap();
-            search_iterations_lesser += thread_search_iterations_lesser;
-            search_iterations_greater += thread_search_iterations_greater;
-            unchanged_idx_count += thread_unchanged_idx_count;
-            println!("Thread number: {:?} - Finished!", thread_idx);
-        }
+        // for _ in 0..xy_sliced_canvas.len() {
+        //     let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count) = rx.recv().unwrap();
+        //     search_iterations_lesser += thread_search_iterations_lesser;
+        //     search_iterations_greater += thread_search_iterations_greater;
+        //     unchanged_idx_count += thread_unchanged_idx_count;
+        //     println!("Thread number: {:?} - Finished!", thread_idx);
+        // }
 
         let duration = start_time.elapsed();
         println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, timestamp);

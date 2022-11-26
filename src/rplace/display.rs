@@ -13,7 +13,7 @@ pub struct GraphicsHelper {
 
 impl GraphicsHelper {
     pub fn new(canvas: Canvas) -> GraphicsHelper {
-        let timestamp = canvas.max_timestamp;
+        let timestamp = canvas.min_timestamp;
         GraphicsHelper {
             canvas,
             timestamp,

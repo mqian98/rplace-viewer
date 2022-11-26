@@ -24,15 +24,7 @@ impl RedditPlaceWindowHandler {
     pub fn new(file_path: &str, size: usize) -> RedditPlaceWindowHandler {
         let start_time = Instant::now();
 
-        let canvas = match Canvas::new_with_file_path(file_path, size) {
-            Some(canvas) => {
-                canvas
-            }
-            _ => {
-                println!("Failed to load canvas. Using default");
-                Canvas::new_with_pixels(basic_pixel_pattern())
-            }
-        };
+        let canvas = Canvas::new_with_file_path(file_path);
 
         let duration = start_time.elapsed();
         println!("RedditPlaceWindowHandler init time {:?}", duration);
