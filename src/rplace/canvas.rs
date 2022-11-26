@@ -79,7 +79,7 @@ impl Canvas {
         let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
 
-        let n_threads = 4;
+        let n_threads = 8;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
         let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
         let mut xy_sliced_canvas: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();

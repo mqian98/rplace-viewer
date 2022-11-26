@@ -109,20 +109,37 @@ impl SerializedDataset {
         datapoint_history_metadata.length as usize
     }
 
+    // obtains a slice of the datapoint history
+    // this is equivalent of calling self.datapoint_history_bytes(x, y)[slice_start_idx..slice_end_idx]
+    pub fn datapoint_history_bytes_sliced(&self, x: u32, y: u32, slice_start_idx: u32, slice_end_idx: u32) -> &[u8] {
+        let metadata_idx = y * self.metadata.canvas_width + x;
+        let datapoint_history_metadata = &self.metadata.history_metadata[metadata_idx as usize];
+
+        let first_datapoint_idx = self.data_start_idx + 8;
+        let start_idx = first_datapoint_idx + ((datapoint_history_metadata.offset + slice_start_idx) as u64 * self.metadata.datapoint_size as u64);
+
+        let slice_length = slice_end_idx - slice_start_idx;
+        let end_idx = start_idx + (slice_length as u64 * self.metadata.datapoint_size as u64);
+
+        //println!("fetching (x, y)=({} ,{}) from bytes {}..{} | metadata offset {} length {}", x, y, start_idx, end_idx, datapoint_history_metadata.offset, datapoint_history_metadata.length);
+        self.mmap.get(start_idx as usize..end_idx as usize).unwrap()
+    }
+
     pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> (usize, RPlaceDatasetDatapoint) {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
-        let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes(x as u32, y as u32));
-        let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
+        let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes_sliced(x as u32, y as u32, start_idx as u32, end_idx as u32));
+        let length = end_idx - start_idx;
+        let result = (0..length).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
             datapoint_history.get(*idx).timestamp.cmp(&timestamp)
         );
 
-        let mut index = start_idx;
+        let mut index = 0;
         match result {
             Ok(value) => index += value,
             Err(value) => index += value - 1,
         }
 
-        (index, datapoint_history.get(index))
+        (index + start_idx, datapoint_history.get(index))
     }
 }
 
@@ -147,9 +164,7 @@ impl<'a> SerializedDatapointHistory<'a> {
             length,
         }
     }
-}
 
-impl<'a> SerializedDatapointHistory<'a> {
     pub fn get(&self, index: usize) -> RPlaceDatasetDatapoint {
         let start_idx = index * self.datapoint_size as usize;
         let end_idx = start_idx + self.datapoint_size as usize;
