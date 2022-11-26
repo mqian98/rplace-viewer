@@ -116,30 +116,54 @@ impl SerializedDataset {
         let datapoint_history_metadata = &self.metadata.history_metadata[metadata_idx as usize];
 
         let first_datapoint_idx = self.data_start_idx + 8;
-        let start_idx = first_datapoint_idx + ((datapoint_history_metadata.offset + slice_start_idx) as u64 * self.metadata.datapoint_size as u64);
+        let mmap_start_idx = first_datapoint_idx + ((datapoint_history_metadata.offset + slice_start_idx) as u64 * self.metadata.datapoint_size as u64);
 
         let slice_length = slice_end_idx - slice_start_idx;
-        let end_idx = start_idx + (slice_length as u64 * self.metadata.datapoint_size as u64);
+        let mmap_end_idx = mmap_start_idx + (slice_length as u64 * self.metadata.datapoint_size as u64);
 
         //println!("fetching (x, y)=({} ,{}) from bytes {}..{} | metadata offset {} length {}", x, y, start_idx, end_idx, datapoint_history_metadata.offset, datapoint_history_metadata.length);
-        self.mmap.get(start_idx as usize..end_idx as usize).unwrap()
+        self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
+    }
+
+    fn datapoint_history_xy_offset(&self, x: u32, y: u32) -> u64 {
+        let metadata_idx = y * self.metadata.canvas_width + x;
+        let datapoint_history_metadata = &self.metadata.history_metadata[metadata_idx as usize];
+
+        let first_datapoint_idx = self.data_start_idx + 8;
+        first_datapoint_idx + (datapoint_history_metadata.offset as u64 * self.metadata.datapoint_size as u64)
+    }
+
+    fn datapoint_bytes(&self, x: u32, y: u32, idx: u32) -> &[u8] {
+        let mmap_start_idx = self.datapoint_history_xy_offset(x, y) + (idx as u64 * self.metadata.datapoint_size as u64);
+        let mmap_end_idx = mmap_start_idx + self.metadata.datapoint_size as u64;
+        self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
+    }
+
+    fn datapoint_bytes_with_history_offset(&self, history_offset: u64, idx: u32) -> &[u8] {
+        let mmap_start_idx = history_offset + (idx as u64 * self.metadata.datapoint_size as u64);
+        let mmap_end_idx = mmap_start_idx + self.metadata.datapoint_size as u64;
+        self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
+    }
+
+    fn datapoint_with_history_offset(&self, history_offset: u64, idx: u32) -> RPlaceDatasetDatapoint {
+        let bytes = self.datapoint_bytes_with_history_offset(history_offset, idx);
+        bincode::deserialize(bytes).unwrap()
     }
 
     pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> (usize, RPlaceDatasetDatapoint) {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
-        let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes_sliced(x as u32, y as u32, start_idx as u32, end_idx as u32));
-        let length = end_idx - start_idx;
-        let result = (0..length).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
-            SerializedDatapoint::extract_timestamp(datapoint_history.get_bytes(*idx)).cmp(&timestamp)
+        let xy_offset = self.datapoint_history_xy_offset(x as u32, y as u32);
+        let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
+            SerializedDatapoint::extract_timestamp(self.datapoint_bytes_with_history_offset(xy_offset, *idx as u32)).cmp(&timestamp)
         );
 
-        let mut index = 0;
+        let mut index = start_idx;
         match result {
             Ok(value) => index += value,
             Err(value) => index += value - 1,
         }
 
-        (index + start_idx, datapoint_history.get(index))
+        (index, self.datapoint_with_history_offset(xy_offset, index as u32))
     }
 }
 
