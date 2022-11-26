@@ -1,4 +1,4 @@
-use std::{time::Instant, fs::File, io::Write};
+use std::{time::Instant, fs::File, io::Write, mem::size_of};
 
 use memmap::Mmap;
 use serde::{Serialize, Deserialize};
@@ -130,7 +130,7 @@ impl SerializedDataset {
         let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes_sliced(x as u32, y as u32, start_idx as u32, end_idx as u32));
         let length = end_idx - start_idx;
         let result = (0..length).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
-            datapoint_history.get(*idx).timestamp.cmp(&timestamp)
+            SerializedDatapoint::extract_timestamp(datapoint_history.get_bytes(*idx)).cmp(&timestamp)
         );
 
         let mut index = 0;
@@ -166,9 +166,33 @@ impl<'a> SerializedDatapointHistory<'a> {
     }
 
     pub fn get(&self, index: usize) -> RPlaceDatasetDatapoint {
+        bincode::deserialize(self.get_bytes(index)).unwrap()
+    }
+
+    pub fn get_bytes(&self, index: usize) -> &'a [u8] {
         let start_idx = index * self.datapoint_size as usize;
         let end_idx = start_idx + self.datapoint_size as usize;
-        bincode::deserialize(&self.bytes[start_idx..end_idx]).unwrap()
+        &self.bytes[start_idx..end_idx]
+    }
+}
+
+pub struct SerializedDatapoint<'a> {
+    bytes: &'a [u8],
+}
+
+impl<'a> SerializedDatapoint<'a> {
+    pub fn new(bytes: &'a [u8]) -> SerializedDatapoint {
+        SerializedDatapoint { 
+            bytes,
+        }
+    }
+    
+    pub fn timestamp(&self) -> u64 {
+        bincode::deserialize(&self.bytes[0..size_of::<u64>()]).unwrap()
+    }
+
+    pub fn extract_timestamp(bytes: &[u8]) -> u64 {
+        bincode::deserialize(&bytes[0..size_of::<u64>()]).unwrap()
     }
 }
 
