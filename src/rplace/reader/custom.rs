@@ -111,8 +111,6 @@ impl SerializedDataset {
 
     pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> (usize, RPlaceDatasetDatapoint) {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
-        let bytes_start_idx = start_idx*self.metadata.datapoint_size as usize;
-        let bytes_end_idx = end_idx*self.metadata.datapoint_size as usize;
         let datapoint_history = SerializedDatapointHistory::new(&self.datapoint_history_bytes(x as u32, y as u32));
         let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
             datapoint_history.get(*idx).timestamp.cmp(&timestamp)

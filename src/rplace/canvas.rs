@@ -79,7 +79,7 @@ impl Canvas {
         let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
 
-        let n_threads = 1; //8;
+        let n_threads = 4;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
         let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
         let mut xy_sliced_canvas: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
@@ -92,14 +92,13 @@ impl Canvas {
         }
 
         type CanvasThreadOutput = (usize, f32, f32, i32);
-        //let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
-        //let dataset = Arc::new(&self.dataset);
-        //thread::scope(|scope| {
+        let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
+        let dataset = Arc::new(&self.dataset);
+        thread::scope(|scope| {
             for (n_th, slice) in xy_sliced_canvas.iter_mut().enumerate() {
-                // let thread_tx = tx.clone();
-                // let thread_dataset = dataset.clone();
-                // scope.spawn(move || {
-                let thread_dataset = &self.dataset;
+                let thread_tx = tx.clone();
+                let thread_dataset = dataset.clone();
+                scope.spawn(move || {
                     let mut thread_search_iterations_lesser = 0.0;
                     let mut thread_search_iterations_greater = 0.0;
                     let mut thread_unchanged_idx_count = 0;
@@ -129,28 +128,24 @@ impl Canvas {
                             };
             
                             let (search_idx, search_datapoint) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx);
-
                             pixel.color = search_datapoint.color;
                             pixel.datapoint_history_idx = search_idx;
-                            pixel.timestamp = timestamp as u64; //datapoint.timestamp;
+                            pixel.timestamp = timestamp as u64;
                         }
                     }
 
-                    search_iterations_lesser += thread_search_iterations_lesser;
-                    search_iterations_greater += thread_search_iterations_greater;
-                    unchanged_idx_count += thread_unchanged_idx_count;
-                    //thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count)).unwrap();
-                //});
+                    thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count)).unwrap();
+                });
             }
-        //});
+        });
 
-        // for _ in 0..xy_sliced_canvas.len() {
-        //     let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count) = rx.recv().unwrap();
-        //     search_iterations_lesser += thread_search_iterations_lesser;
-        //     search_iterations_greater += thread_search_iterations_greater;
-        //     unchanged_idx_count += thread_unchanged_idx_count;
-        //     println!("Thread number: {:?} - Finished!", thread_idx);
-        // }
+        for _ in 0..xy_sliced_canvas.len() {
+            let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count) = rx.recv().unwrap();
+            search_iterations_lesser += thread_search_iterations_lesser;
+            search_iterations_greater += thread_search_iterations_greater;
+            unchanged_idx_count += thread_unchanged_idx_count;
+            println!("Thread number: {:?} - Finished!", thread_idx);
+        }
 
         let duration = start_time.elapsed();
         println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, timestamp);
