@@ -158,15 +158,20 @@ impl SerializedDataset {
         
         // first check next datapoint 
         if current_value.timestamp < timestamp {
-            let next_idx = min!(end_idx as i32, current_value.datapoint_history_idx as i32 + 1);
+            let last_possible_idx = end_idx as i32 - 1;
+            let next_idx = min!(last_possible_idx, current_value.datapoint_history_idx as i32 + 1);
             let next_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, next_idx as u32);
             if timestamp < next_datapoint_timestamp {
                 return (current_value.datapoint_history_idx, self.datapoint_with_history_offset(history_offset, current_value.datapoint_history_idx as u32));
+            } else if timestamp == next_datapoint_timestamp || 
+                    timestamp > next_datapoint_timestamp && next_idx == last_possible_idx {
+                return (next_idx as usize, self.datapoint_with_history_offset(history_offset, next_idx as u32));
             }
         } else if current_value.timestamp > timestamp {
-            let prev_idx = max!(start_idx as i32, current_value.datapoint_history_idx as i32 - 1);
-            let next_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, prev_idx as u32);
-            if timestamp > next_datapoint_timestamp {
+            let prev_idx = max!(start_idx as i32, current_value.datapoint_history_idx as i32);
+            let prev_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, prev_idx as u32);
+            if timestamp >= prev_datapoint_timestamp ||
+                    timestamp < prev_datapoint_timestamp && prev_idx == start_idx as i32 {
                 return (prev_idx as usize, self.datapoint_with_history_offset(history_offset, prev_idx as u32));
             }
         }
