@@ -2,7 +2,7 @@ use min_max::min;
 use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
 use super::canvas::Canvas;
-use super::data::{DAY_1_START_TIMESTAMP, DAY_2_START_TIMESTAMP, DAY_3_START_TIMESTAMP};
+use super::data::{DAY_1_START_TIMESTAMP, DAY_2_START_TIMESTAMP, DAY_3_START_TIMESTAMP, MAX_TIMESTAMP};
 
 #[derive(Debug)]
 pub struct GraphicsHelper {
@@ -44,9 +44,11 @@ impl GraphicsHelper {
     pub fn adjust_timestamp_to_day(&mut self, day: u32) {
         let new_timestamp: i64;
         match day {
+            0 => new_timestamp = DAY_1_START_TIMESTAMP as i64 - 1,
             1 => new_timestamp = DAY_1_START_TIMESTAMP as i64,
             2 => new_timestamp = DAY_2_START_TIMESTAMP as i64,
             3 => new_timestamp = DAY_3_START_TIMESTAMP as i64,
+            4 => new_timestamp = MAX_TIMESTAMP as i64,
             _ => return,
         }
 

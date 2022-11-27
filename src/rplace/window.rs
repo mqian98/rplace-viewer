@@ -123,6 +123,10 @@ impl WindowHandler for RedditPlaceWindowHandler
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
+            Some(VirtualKeyCode::Key0) => {
+                self.graphics_helper.adjust_timestamp_to_day(0);
+                helper.request_redraw();
+            },
             Some(VirtualKeyCode::Key1) => {
                 self.graphics_helper.adjust_timestamp_to_day(1);
                 helper.request_redraw();
@@ -133,6 +137,10 @@ impl WindowHandler for RedditPlaceWindowHandler
             },
             Some(VirtualKeyCode::Key3) => {
                 self.graphics_helper.adjust_timestamp_to_day(3);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Key4) => {
+                self.graphics_helper.adjust_timestamp_to_day(4);
                 helper.request_redraw();
             },
             _ => (),
