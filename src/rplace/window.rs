@@ -1,6 +1,5 @@
 use min_max::min;
 use std::time::Instant;
-use crate::rplace::pixel::basic_pixel_pattern;
 
 use super::display::GraphicsHelper;
 use super::pixel::PixelColor;
@@ -59,7 +58,7 @@ impl WindowHandler for RedditPlaceWindowHandler
 
         let canvas_display_size = min!(self.graphics_helper.display_width(), self.graphics_helper.display_height()) as f32;
         self.graphics_helper.canvas.top_left = Vector2::new_x((self.graphics_helper.display_width() as f32 - canvas_display_size) / 2.0);
-        self.graphics_helper.canvas.pixel_size = canvas_display_size / self.graphics_helper.canvas.pixels.len() as f32 * 2.0; // NOTE: only multiplying by 2 because at the start we only need to display 1000x1000 
+        self.graphics_helper.canvas.pixel_size = canvas_display_size / self.graphics_helper.canvas.pixels.len() as f32; // * 2.0; // NOTE: only multiplying by 2 because at the start we only need to display 1000x1000 
 
         println!("display_size={:?}, scale_factor={:?}, top_left={:?}, pixel_size={:?}", self.graphics_helper.display_size, self.graphics_helper.scale_factor, self.graphics_helper.canvas.top_left, self.graphics_helper.canvas.pixel_size);
         println!("WindowHandler size {:?}", std::mem::size_of_val(self));
@@ -122,6 +121,18 @@ impl WindowHandler for RedditPlaceWindowHandler
             Some(VirtualKeyCode::L) => {
                 let delta = 1_000_000_000_000;
                 self.graphics_helper.adjust_timestamp(delta);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Key1) => {
+                self.graphics_helper.adjust_timestamp_to_day(1);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Key2) => {
+                self.graphics_helper.adjust_timestamp_to_day(2);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Key3) => {
+                self.graphics_helper.adjust_timestamp_to_day(3);
                 helper.request_redraw();
             },
             _ => (),

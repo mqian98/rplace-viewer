@@ -1,10 +1,11 @@
 use std::{time::Instant, fs::File, io::Write, mem::size_of};
 
 use memmap::Mmap;
+use min_max::{min, max};
 use serde::{Serialize, Deserialize};
 use strum::IntoEnumIterator;
 
-use crate::rplace::{dataset::{RPlaceDatasetDatapoint, RPlaceDataset}, data::RPlaceDataReader, pixel::PixelColor};
+use crate::rplace::{dataset::{RPlaceDatasetDatapoint, RPlaceDataset}, data::RPlaceDataReader, pixel::PixelColor, canvas::CanvasPixel};
 
 //const SERIALIZED_DATAPOINT_SIZE: u8 = 14;
 //assert_eq!(SERIALIZED_DATAPOINT_SIZE, RPlaceDatasetDatapoint::start().to_bytes().len() as u8);
@@ -133,16 +134,17 @@ impl SerializedDataset {
         first_datapoint_idx + (datapoint_history_metadata.offset as u64 * self.metadata.datapoint_size as u64)
     }
 
-    fn datapoint_bytes(&self, x: u32, y: u32, idx: u32) -> &[u8] {
-        let mmap_start_idx = self.datapoint_history_xy_offset(x, y) + (idx as u64 * self.metadata.datapoint_size as u64);
-        let mmap_end_idx = mmap_start_idx + self.metadata.datapoint_size as u64;
-        self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
-    }
-
     fn datapoint_bytes_with_history_offset(&self, history_offset: u64, idx: u32) -> &[u8] {
         let mmap_start_idx = history_offset + (idx as u64 * self.metadata.datapoint_size as u64);
         let mmap_end_idx = mmap_start_idx + self.metadata.datapoint_size as u64;
         self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
+    }
+
+    fn datapoint_timestamp_with_history_offset(&self, history_offset: u64, idx: u32) -> u64 {
+        let mmap_start_idx = history_offset + (idx as u64 * self.metadata.datapoint_size as u64);
+        let mmap_end_idx = mmap_start_idx as usize + size_of::<u64>();
+        let bytes = self.mmap.get(mmap_start_idx as usize..mmap_end_idx).unwrap();
+        bincode::deserialize(bytes).unwrap()
     }
 
     fn datapoint_with_history_offset(&self, history_offset: u64, idx: u32) -> RPlaceDatasetDatapoint {
@@ -150,11 +152,28 @@ impl SerializedDataset {
         bincode::deserialize(bytes).unwrap()
     }
 
-    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize) -> (usize, RPlaceDatasetDatapoint) {
+    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize, current_value: &CanvasPixel) -> (usize, RPlaceDatasetDatapoint) {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
-        let xy_offset = self.datapoint_history_xy_offset(x as u32, y as u32);
+        let history_offset = self.datapoint_history_xy_offset(x as u32, y as u32);
+        
+        // first check next datapoint 
+        if current_value.timestamp < timestamp {
+            let next_idx = min!(end_idx as i32, current_value.datapoint_history_idx as i32 + 1);
+            let next_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, next_idx as u32);
+            if timestamp < next_datapoint_timestamp {
+                return (current_value.datapoint_history_idx, self.datapoint_with_history_offset(history_offset, current_value.datapoint_history_idx as u32));
+            }
+        } else if current_value.timestamp > timestamp {
+            let prev_idx = max!(start_idx as i32, current_value.datapoint_history_idx as i32 - 1);
+            let next_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, prev_idx as u32);
+            if timestamp > next_datapoint_timestamp {
+                return (prev_idx as usize, self.datapoint_with_history_offset(history_offset, prev_idx as u32));
+            }
+        }
+
+        // perform binary search
         let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
-            SerializedDatapoint::extract_timestamp(self.datapoint_bytes_with_history_offset(xy_offset, *idx as u32)).cmp(&timestamp)
+            self.datapoint_timestamp_with_history_offset(history_offset, *idx as u32).cmp(&timestamp)
         );
 
         let mut index = start_idx;
@@ -163,7 +182,7 @@ impl SerializedDataset {
             Err(value) => index += value - 1,
         }
 
-        (index, self.datapoint_with_history_offset(xy_offset, index as u32))
+        (index, self.datapoint_with_history_offset(history_offset, index as u32))
     }
 }
 

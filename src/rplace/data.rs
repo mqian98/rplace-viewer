@@ -2,6 +2,16 @@ use std::fmt;
 use speedy2d::dimen::{Vec2, Vector2};
 use super::{pixel::PixelColor, reader::parquet::{RPlaceParquetDatapoint, RPlaceParquetDataReader, RPlaceParquetDataIterator}};
 
+pub const DAY_1_START_TIMESTAMP: u64 = 1648817050315000000;
+pub const DAY_2_START_TIMESTAMP: u64 = 1648916696239000000;
+pub const DAY_3_START_TIMESTAMP: u64 = 1649012633356000000;
+pub const MAX_TIMESTAMP: u64 = 1649117640207000000;
+
+pub const DAY_1_START_LINE: u64 = 0;
+pub const DAY_2_START_LINE: u64 = 28_201_610;
+pub const DAY_3_START_LINE: u64 = 71_784_347;
+pub const TOTAL_LINES: u64 = 160_808_191;
+
 // TODO: need to change this to custom type? maybe use u16 for size of coordinate but that can be confusing when doing math. 
 // if we use u16, then we always have to make sure we dont overflow
 pub type RPlaceCoordinate = Vec2;
