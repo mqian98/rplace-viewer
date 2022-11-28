@@ -7,6 +7,7 @@ use std::time::Instant;
 
 use super::pixel::PixelColor;
 use super::reader::custom::SerializedDataset;
+use min_max::{max, min};
 use speedy2d::dimen::Vector2;
 
 #[derive(Debug, Clone, Copy)]
@@ -77,7 +78,9 @@ impl Canvas {
         let mut search_iterations_lesser = 0.0;
         let mut search_iterations_greater = 0.0;
         let mut unchanged_idx_count = 0;
-        let search_idx_deltas: &mut HashMap<i32, u32> = &mut HashMap::new();
+        let mut search_idx_deltas: HashMap<i32, u32> = HashMap::new();
+        let mut search_types_count: HashMap<i32, u32> = HashMap::new();
+        let mut search_color_change_count = 0;
 
         let n_threads = 8;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
@@ -91,7 +94,7 @@ impl Canvas {
             xy_sliced_canvas.push(slices);
         }
 
-        type CanvasThreadOutput = (usize, f32, f32, i32, HashMap<i32, u32>);
+        type CanvasThreadOutput = (usize, f32, f32, i32, HashMap<i32, u32>, HashMap<i32, u32>, i32);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
         let dataset = Arc::new(&self.dataset);
         thread::scope(|scope| {
@@ -102,7 +105,9 @@ impl Canvas {
                     let mut thread_search_iterations_lesser = 0.0;
                     let mut thread_search_iterations_greater = 0.0;
                     let mut thread_unchanged_idx_count = 0;
-                    let thread_idx_deltas: &mut HashMap<i32, u32> = &mut HashMap::new();
+                    let mut thread_idx_deltas: HashMap<i32, u32> = HashMap::new();
+                    let mut thread_types_count: HashMap<i32, u32> = HashMap::new();
+                    let mut thread_color_change_count = 0;
 
                     for (row_idx, row) in slice.into_iter().enumerate() {
                         let y = n_th * chunk + row_idx + y1;
@@ -124,12 +129,17 @@ impl Canvas {
                                 },
                                 0 => { 
                                     thread_unchanged_idx_count += 1;
+                                    *thread_idx_deltas.entry(0).or_insert(0) += 1;
                                     continue
                                 },
                             };
             
-                            let (search_idx, search_datapoint) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
-                            *thread_idx_deltas.entry(search_idx as i32 - pixel.datapoint_history_idx as i32).or_insert(0) += 1;
+                            let (search_idx, search_datapoint, types_count) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
+                            *thread_idx_deltas.entry(search_idx as i32 - current_idx as i32).or_insert(0) += 1;
+                            *thread_types_count.entry(types_count).or_insert(0) += 1;
+                            if pixel.color != search_datapoint.color {
+                                thread_color_change_count += 1;
+                            }
 
                             pixel.color = search_datapoint.color;
                             pixel.datapoint_history_idx = search_idx;
@@ -137,34 +147,39 @@ impl Canvas {
                         }
                     }
 
-                    thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, (*thread_idx_deltas).clone())).unwrap();
+                    thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, thread_idx_deltas, thread_types_count, thread_color_change_count)).unwrap();
                 });
             }
         });
 
         for _ in 0..xy_sliced_canvas.len() {
-            let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, thread_idx_deltas) = rx.recv().unwrap();
+            let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, thread_idx_deltas, thread_types_count, thread_color_change_count) = rx.recv().unwrap();
+            println!("Thread number: {:?} - Finished!", thread_idx);
+
             search_iterations_lesser += thread_search_iterations_lesser;
             search_iterations_greater += thread_search_iterations_greater;
             unchanged_idx_count += thread_unchanged_idx_count;
-            println!("Thread number: {:?} - Finished!", thread_idx);
+            search_color_change_count += thread_color_change_count;
+            
+            for (t, count) in thread_types_count {
+                *search_types_count.entry(t).or_insert(0) += count;
+            }
             for (delta, count) in thread_idx_deltas {
                 *search_idx_deltas.entry(delta).or_insert(0) += count;
             }
         }
 
         let duration = start_time.elapsed();
-        println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, timestamp {}", duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, timestamp);
+        println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, color-change-count {} | timestamp {}", 
+            duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, search_color_change_count, timestamp);
 
-        let mut search_mutated: Vec<(&i32, &u32)> = (*search_idx_deltas).iter().collect();
-        search_mutated.sort_by(|x,y| x.1.cmp(&y.1));
-        search_mutated.reverse();
+        let mut search_mutated: Vec<(&i32, &u32)> = search_idx_deltas.iter().collect();
+        search_mutated.sort_by(|x,y| y.1.cmp(&x.1));
         println!("Search idx deltas");
-        for (delta, count) in search_mutated {
-            if *count > 1000 {
-                println!("delta: {} count: {}", delta, count);
-            }
+        for (delta, count) in &search_mutated[0..min(5, search_mutated.len())] {
+            println!("delta: {} count: {}", delta, count);
         }
+        println!("Search types counts {:?}", search_types_count);
     }
 
     pub fn display_size(&self) -> Vector2<f32> {
