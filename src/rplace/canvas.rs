@@ -54,7 +54,8 @@ impl Canvas {
         let max_timestamp = dataset.metadata.max_timestamp;
         let default_pixel = CanvasPixel::new(PixelColor::Black, min_timestamp);
 
-        println!("Creatint Canvas | min_timestamp {} | max_timestamp {} | default_pixel {:?}", min_timestamp, max_timestamp, default_pixel);
+        println!("Creatint Canvas | min_timestamp {} | max_timestamp {} | default_pixel {:?}", 
+            min_timestamp, max_timestamp, default_pixel);
 
         Canvas {
             // TODO: Replace this with the RPlaceDataset and add another matrix of current frame's indicies 

@@ -1,11 +1,12 @@
 use min_max::min;
+use speedy2d::image::{ImageDataType, ImageSmoothingMode};
 use std::time::Instant;
 
 use super::display::GraphicsHelper;
 use super::pixel::PixelColor;
 use std::process::exit;
 use speedy2d::color::Color;
-use speedy2d::dimen::Vector2;
+use speedy2d::dimen::{Vector2, Vec2, UVec2};
 use speedy2d::shape::Rectangle;
 use speedy2d::Graphics2D;
 use speedy2d::window::{WindowHandler, WindowHelper, VirtualKeyCode, MouseScrollDistance};
@@ -224,26 +225,45 @@ impl RedditPlaceWindowHandler {
 
     fn draw_pixels(&self, graphics: &mut Graphics2D, ignore_color: Option<PixelColor>) {
         let (x1, x2, y1, y2) = self.graphics_helper.pixel_index_bounds_2d();
+        let x_width = x2 - x1;
+        let y_height = y2 - y1;
 
         let total_canvas_pixels = self.graphics_helper.num_rectangles_to_redraw();
         let total_display_pixels = total_canvas_pixels as f32 * self.graphics_helper.canvas.pixel_size;
-        println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
-        for y in y1..y2 {
-            for x in x1..x2 {
-                let color = self.graphics_helper.canvas.pixels[y][x].color;
-                if Some(color) == ignore_color {
-                    continue;
-                }
+        println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", 
+            x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
 
-                let (mut top_left, mut bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x as u32, y as u32);
-                if !self.graphics_helper.is_rect_visible(&Rectangle::new(top_left, bottom_right)) {
-                    continue;
-                }
-        
-                self.graphics_helper.bound_point_by_display(&mut top_left);
-                self.graphics_helper.bound_point_by_display(&mut bottom_right);
-                graphics.draw_rectangle(Rectangle::new(top_left, bottom_right), color.into());
+        let mut image_bytes: Vec<u8> = vec![0; x_width * y_height * 3];
+        println!("Image bytes size: {}, {} {}", image_bytes.len(), x_width, y_height);
+
+        for (display_y, canvas_y) in (y1..y2).into_iter().enumerate() {
+            for (display_x, canvas_x) in (x1..x2).into_iter().enumerate() {
+                let color: u32 = self.graphics_helper.canvas.pixels[canvas_y][canvas_x].color.into();
+                let r = (color >> 16 & 0xff) as u8;
+                let g = (color >> 8 & 0xff) as u8;
+                let b = (color & 0xff) as u8;
+
+                let idx = ((display_y * x_width) + display_x) * 3;
+                image_bytes[idx] = r;
+                image_bytes[idx + 1] = g;
+                image_bytes[idx + 2] = b;
             }
+        }
+
+        let (mut top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
+        let (_, mut bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+
+        let rect = Rectangle::new(top_left, bottom_right);
+        let image = graphics.create_image_from_raw_pixels(
+            ImageDataType::RGB, 
+            ImageSmoothingMode::NearestNeighbor, 
+            UVec2::new(x_width as u32, y_height as u32), 
+            image_bytes.as_slice()
+        );
+        
+        match image {
+            Ok(image) => graphics.draw_rectangle_image(rect, &image),
+            Err(e) => println!("Error {:?}", e),
         }
     }
 }
