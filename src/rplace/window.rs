@@ -18,6 +18,8 @@ pub struct RedditPlaceWindowHandler {
     graphics_helper: GraphicsHelper,
     mouse_position: Vector2<f32>,
     is_mouse_pressed: bool,
+    is_ctrl_pressed: bool,
+    is_shift_pressed: bool,
     realtime_redraw_rectangle_threshold: u32,
 }
 
@@ -41,6 +43,8 @@ impl RedditPlaceWindowHandler {
             // defaulting these values until the WindowHandler sets them during on_start
             mouse_position: Vector2::ZERO,
             is_mouse_pressed: false,
+            is_ctrl_pressed: false,
+            is_shift_pressed: false,
             realtime_redraw_rectangle_threshold: 320000,
         }
     }
@@ -66,6 +70,25 @@ impl WindowHandler for RedditPlaceWindowHandler
         println!("WindowHandler size {:?}", std::mem::size_of_val(self));
     }
 
+    fn on_key_down(
+            &mut self,
+            helper: &mut WindowHelper<()>,
+            virtual_key_code: Option<VirtualKeyCode>,
+            scancode: speedy2d::window::KeyScancode
+        ) {
+        println!("Detected keydown event {:?} {:?}", virtual_key_code, scancode);
+
+        match virtual_key_code {
+            Some(VirtualKeyCode::LControl) | Some(VirtualKeyCode::RControl) => {
+                self.is_ctrl_pressed = true;
+            },
+            Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::RShift) => {
+                self.is_shift_pressed = true;
+            },
+            _ => (),
+        }
+    }
+
     fn on_key_up(
             &mut self,
             helper: &mut WindowHelper<()>,
@@ -75,6 +98,12 @@ impl WindowHandler for RedditPlaceWindowHandler
         println!("Detected keyup event {:?} {:?}", virtual_key_code, scancode);
 
         match virtual_key_code {
+            Some(VirtualKeyCode::LControl) | Some(VirtualKeyCode::RControl) => {
+                self.is_ctrl_pressed = false;
+            },
+            Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::RShift) => {
+                self.is_shift_pressed = false;
+            },
             Some(VirtualKeyCode::Q) | Some(VirtualKeyCode::Escape) => exit(0),
             Some(VirtualKeyCode::Up) => {
                 self.zoom_into_center_of_display(0.5);
@@ -166,10 +195,34 @@ impl WindowHandler for RedditPlaceWindowHandler
             helper: &mut WindowHelper<()>,
             distance: speedy2d::window::MouseScrollDistance
         ) {
+
         match distance {
             MouseScrollDistance::Lines { y, .. } => {
                 let zoom = -1.0 * y as f32;
                 println!("on_mouse_wheel_scroll {:?}", zoom);
+
+                if self.is_ctrl_pressed {
+                    if y < 0.0 {
+                        self.graphics_helper.prev_pixel_change();
+                    } else {
+                        self.graphics_helper.next_pixel_change();
+                    }
+                    
+                    helper.request_redraw();
+                    return;
+                }
+                
+                if self.is_shift_pressed {
+                    let mut delta = 1_000_000_000_000;
+                    if y < 0.0 {
+                        delta *= -1;
+                    }
+
+                    self.graphics_helper.adjust_timestamp(delta);
+                    helper.request_redraw();
+                    return;
+                } 
+                
                 self.zoom_into_mouse_location(zoom); 
                 self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
