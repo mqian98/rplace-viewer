@@ -3,7 +3,7 @@ use std::collections::hash_map::Keys;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, Receiver, self};
 use std::thread;
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 use super::pixel::PixelColor;
 use super::reader::custom::SerializedDataset;
@@ -94,7 +94,7 @@ impl Canvas {
             xy_sliced_canvas.push(slices);
         }
 
-        type CanvasThreadOutput = (usize, f32, f32, i32, HashMap<i32, u32>, HashMap<i32, u32>, i32);
+        type CanvasThreadOutput = (usize, f32, f32, i32, HashMap<i32, u32>, HashMap<i32, u32>, i32, Duration);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
         let dataset = Arc::new(&self.dataset);
         thread::scope(|scope| {
@@ -108,6 +108,7 @@ impl Canvas {
                     let mut thread_idx_deltas: HashMap<i32, u32> = HashMap::new();
                     let mut thread_types_count: HashMap<i32, u32> = HashMap::new();
                     let mut thread_color_change_count = 0;
+                    let mut thread_start_time = Instant::now();
 
                     for (row_idx, row) in slice.into_iter().enumerate() {
                         let y = n_th * chunk + row_idx + y1;
@@ -134,7 +135,9 @@ impl Canvas {
                                 },
                             };
             
-                            let (search_idx, search_datapoint, types_count) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
+                            let (search_idx, 
+                                search_datapoint,
+                                types_count) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
                             *thread_idx_deltas.entry(search_idx as i32 - current_idx as i32).or_insert(0) += 1;
                             *thread_types_count.entry(types_count).or_insert(0) += 1;
                             if pixel.color != search_datapoint.color {
@@ -147,14 +150,30 @@ impl Canvas {
                         }
                     }
 
-                    thread_tx.send((n_th, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, thread_idx_deltas, thread_types_count, thread_color_change_count)).unwrap();
+                    thread_tx.send((
+                        n_th, 
+                        thread_search_iterations_lesser,
+                        thread_search_iterations_greater, 
+                        thread_unchanged_idx_count, 
+                        thread_idx_deltas, 
+                        thread_types_count, 
+                        thread_color_change_count, 
+                        thread_start_time.elapsed()
+                    )).unwrap();
                 });
             }
         });
 
         for _ in 0..xy_sliced_canvas.len() {
-            let (thread_idx, thread_search_iterations_lesser, thread_search_iterations_greater, thread_unchanged_idx_count, thread_idx_deltas, thread_types_count, thread_color_change_count) = rx.recv().unwrap();
-            println!("Thread number: {:?} - Finished!", thread_idx);
+            let (thread_idx, 
+                thread_search_iterations_lesser, 
+                thread_search_iterations_greater, 
+                thread_unchanged_idx_count, 
+                thread_idx_deltas, 
+                thread_types_count, 
+                thread_color_change_count, 
+                thread_duration) = rx.recv().unwrap();
+            println!("Thread number: {:?} - Finished! - Duration {:?}", thread_idx, thread_duration);
 
             search_iterations_lesser += thread_search_iterations_lesser;
             search_iterations_greater += thread_search_iterations_greater;
@@ -235,7 +254,8 @@ impl Canvas {
             self.top_left.x += x_diff;
             self.top_left.y += y_diff;
             self.pixel_size = new_pixel_size;
-            println!("Updated zoom | location=({},{}) diff=({},{}) old_top_left=({},{}) canvas_top_left=({},{})", location.x, location.y, x_diff, y_diff, old_top_left.x, old_top_left.y, self.top_left.x, self.top_left.y);
+            println!("Updated zoom | location=({},{}) diff=({},{}) old_top_left=({},{}) canvas_top_left=({},{})", 
+                location.x, location.y, x_diff, y_diff, old_top_left.x, old_top_left.y, self.top_left.x, self.top_left.y);
         } else {
             // unlike previous case, we need to update the pixel size first to correctly calculate
             // the center coordinate
@@ -244,9 +264,11 @@ impl Canvas {
             
             self.top_left.x += (location.x - center_coordinate.x) / 10.0;
             self.top_left.y += (location.y - center_coordinate.y) / 10.0;
-            println!("Updated zoom | location=({},{}) center=({},{}) canvas_top_left=({},{})", location.x, location.y, center_coordinate.x, center_coordinate.y, self.top_left.x, self.top_left.y);
+            println!("Updated zoom | location=({},{}) center=({},{}) canvas_top_left=({},{})", 
+                location.x, location.y, center_coordinate.x, center_coordinate.y, self.top_left.x, self.top_left.y);
         }
 
-        println!("Updated pixel_size input_size_diff={} modified_size_diff={} new_pixel_size={}", pixel_size_diff, modified_pixel_size_diff, new_pixel_size); 
+        println!("Updated pixel_size input_size_diff={} modified_size_diff={} new_pixel_size={}", 
+            pixel_size_diff, modified_pixel_size_diff, new_pixel_size); 
     }
 }
