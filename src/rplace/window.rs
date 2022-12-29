@@ -1,5 +1,6 @@
+use image::RgbImage;
 use min_max::min;
-use speedy2d::image::{ImageDataType, ImageSmoothingMode};
+use speedy2d::image::{ImageDataType, ImageSmoothingMode, ImageHandle};
 use std::time::Instant;
 
 use super::display::GraphicsHelper;
@@ -113,6 +114,10 @@ impl WindowHandler for RedditPlaceWindowHandler
             },
             Some(VirtualKeyCode::H) => {
                 println!("{:?}", self);
+            },
+            Some(VirtualKeyCode::P) => {
+                println!("Screenshot");
+                self.screenshot();
             },
             Some(VirtualKeyCode::J) => {
                 let delta = -1_000_000_000_000;
@@ -231,8 +236,7 @@ impl RedditPlaceWindowHandler {
         self.graphics_helper.canvas.zoom(pixel_size_diff, self.mouse_position);
     }
 
-    fn draw_pixels(&self, graphics: &mut Graphics2D, ignore_color: Option<PixelColor>) {
-        let (x1, x2, y1, y2) = self.graphics_helper.pixel_index_bounds_2d();
+    fn get_image(&self, x1: usize, x2: usize, y1: usize, y2: usize) -> Vec<u8> {
         let x_width = x2 - x1;
         let y_height = y2 - y1;
 
@@ -242,7 +246,7 @@ impl RedditPlaceWindowHandler {
             x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
 
         let mut image_bytes: Vec<u8> = vec![0; x_width * y_height * 3];
-        println!("Image bytes size: {}, {} {}", image_bytes.len(), x_width, y_height);
+        println!("Image bytes len: {}, size: ({},{})", image_bytes.len(), x_width, y_height);
 
         for (display_y, canvas_y) in (y1..y2).into_iter().enumerate() {
             for (display_x, canvas_x) in (x1..x2).into_iter().enumerate() {
@@ -258,16 +262,48 @@ impl RedditPlaceWindowHandler {
             }
         }
 
-        let (mut top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
-        let (_, mut bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+        return image_bytes;
+    }
 
-        let rect = Rectangle::new(top_left, bottom_right);
+    fn screenshot(&self) {
+        let (x1, x2, y1, y2) = self.graphics_helper.pixel_index_bounds_2d();
+        let x_width = x2 - x1;
+        let y_height = y2 - y1;
+
+        let image_bytes = self.get_image(x1, x2, y1, y2);
+        let mut image = RgbImage::new(x_width as u32, y_height as u32);
+        for y in 0..y_height {
+            for x in 0..x_width {
+                let idx = ((y * x_width) + x) * 3;
+                let r = image_bytes[idx]; 
+                let g = image_bytes[idx + 1];
+                let b = image_bytes[idx + 2];
+                let pixel = image::Rgb([r, g, b]);
+                image.put_pixel(x as u32, y as u32, pixel);
+            } 
+        }
+
+        match image.save("screenshot.png") {
+            Err(e) => println!("Error: {:?}", e),
+            _ => (),
+        };
+    }
+
+    fn draw_pixels(&self, graphics: &mut Graphics2D, ignore_color: Option<PixelColor>) {
+        let (x1, x2, y1, y2) = self.graphics_helper.pixel_index_bounds_2d();
+        let x_width = x2 - x1;
+        let y_height = y2 - y1;
+
         let image = graphics.create_image_from_raw_pixels(
             ImageDataType::RGB, 
             ImageSmoothingMode::NearestNeighbor, 
             UVec2::new(x_width as u32, y_height as u32), 
-            image_bytes.as_slice()
+            self.get_image(x1, x2, y1, y2).as_slice(),
         );
+
+        let (mut top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
+        let (_, mut bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+        let rect = Rectangle::new(top_left, bottom_right);
         
         match image {
             Ok(image) => graphics.draw_rectangle_image(rect, &image),
