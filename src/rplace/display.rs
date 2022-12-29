@@ -27,6 +27,16 @@ impl GraphicsHelper {
 }
 
 impl GraphicsHelper {
+    pub fn prev_pixel_change(&mut self) {
+        let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
+        self.canvas.prev_pixel_change(x1, x2, y1, y2);
+    }
+
+    pub fn next_pixel_change(&mut self) {
+        let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
+        self.canvas.next_pixel_change(x1, x2, y1, y2);
+    }
+
     pub fn adjust_timestamp(&mut self, delta: i64) {
         let mut new_timestamp = self.timestamp as i64 + delta;
         if new_timestamp > self.canvas.max_timestamp as i64 {

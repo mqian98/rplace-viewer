@@ -124,6 +124,14 @@ impl WindowHandler for RedditPlaceWindowHandler
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
+            Some(VirtualKeyCode::Comma) => {
+                self.graphics_helper.prev_pixel_change();
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Period) => {
+                self.graphics_helper.next_pixel_change();
+                helper.request_redraw();
+            },
             Some(VirtualKeyCode::Key0) => {
                 self.graphics_helper.adjust_timestamp_to_day(0);
                 helper.request_redraw();

@@ -126,7 +126,7 @@ impl SerializedDataset {
         self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
     }
 
-    fn datapoint_history_xy_offset(&self, x: u32, y: u32) -> u64 {
+    pub fn datapoint_history_xy_offset(&self, x: u32, y: u32) -> u64 {
         let metadata_idx = y * self.metadata.canvas_width + x;
         let datapoint_history_metadata = &self.metadata.history_metadata[metadata_idx as usize];
 
@@ -134,20 +134,20 @@ impl SerializedDataset {
         first_datapoint_idx + (datapoint_history_metadata.offset as u64 * self.metadata.datapoint_size as u64)
     }
 
-    fn datapoint_bytes_with_history_offset(&self, history_offset: u64, idx: u32) -> &[u8] {
+    pub fn datapoint_bytes_with_history_offset(&self, history_offset: u64, idx: u32) -> &[u8] {
         let mmap_start_idx = history_offset + (idx as u64 * self.metadata.datapoint_size as u64);
         let mmap_end_idx = mmap_start_idx + self.metadata.datapoint_size as u64;
         self.mmap.get(mmap_start_idx as usize..mmap_end_idx as usize).unwrap()
     }
 
-    fn datapoint_timestamp_with_history_offset(&self, history_offset: u64, idx: u32) -> u64 {
+    pub fn datapoint_timestamp_with_history_offset(&self, history_offset: u64, idx: u32) -> u64 {
         let mmap_start_idx = history_offset + (idx as u64 * self.metadata.datapoint_size as u64);
         let mmap_end_idx = mmap_start_idx as usize + size_of::<u64>();
         let bytes = self.mmap.get(mmap_start_idx as usize..mmap_end_idx).unwrap();
         bincode::deserialize(bytes).unwrap()
     }
 
-    fn datapoint_with_history_offset(&self, history_offset: u64, idx: u32) -> RPlaceDatasetDatapoint {
+    pub fn datapoint_with_history_offset(&self, history_offset: u64, idx: u32) -> RPlaceDatasetDatapoint {
         let bytes = self.datapoint_bytes_with_history_offset(history_offset, idx);
         bincode::deserialize(bytes).unwrap()
     }
