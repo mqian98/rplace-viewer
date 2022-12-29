@@ -73,31 +73,36 @@ impl Canvas {
 impl Canvas {
     // TODO: need to fix this logic as it can change multiple pixels at a time
     pub fn prev_pixel_change(&mut self, x1: usize, x2: usize, y1: usize, y2: usize) {
+        let start_time = Instant::now();
         let mut prev_timestamp = self.min_timestamp;
         for y in y1..y2 {
             for x in x1..x2 {
-                let prev_datapoint_history_idx = max!(0, self.pixels[y][x].datapoint_history_idx as i32 - 1) as u32;
-                let history_offset = self.dataset.datapoint_history_xy_offset(x as u32, y as u32);
-                let timestamp = self.dataset.datapoint_timestamp_with_history_offset(history_offset, prev_datapoint_history_idx);
                 let current_timestamp = self.pixels[y][x].timestamp;
+                let mut prev_datapoint_history_idx = max!(0, self.pixels[y][x].datapoint_history_idx) as u32;
+                let mut timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx);
+
+                if timestamp == current_timestamp {
+                    prev_datapoint_history_idx = max!(0, self.pixels[y][x].datapoint_history_idx as i32 - 1) as u32;
+                    timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx);
+                }
                 
                 if timestamp > prev_timestamp && timestamp < current_timestamp {
                     prev_timestamp = timestamp;
                 }
             }
         }
-
+        println!("Found prev pixel: {:?}", start_time.elapsed());
         self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn next_pixel_change(&mut self, x1: usize, x2: usize, y1: usize, y2: usize) {
+        let start_time = Instant::now();
         let mut next_timestamp = self.max_timestamp;
         for y in y1..y2 {
             for x in x1..x2 {
                 let max_datapoint_history_idx = self.dataset.datapoint_history_len(x as u32, y as u32) - 1;
-                let next_datapoint_history_idx = min!(self.pixels[y][x].datapoint_history_idx + 1, max_datapoint_history_idx);
-                let history_offset = self.dataset.datapoint_history_xy_offset(x as u32, y as u32);
-                let timestamp = self.dataset.datapoint_timestamp_with_history_offset(history_offset, next_datapoint_history_idx as u32);
+                let next_datapoint_history_idx = min!(self.pixels[y][x].datapoint_history_idx + 1, max_datapoint_history_idx) as u32;
+                let timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, next_datapoint_history_idx);
                 let current_timestamp = self.pixels[y][x].timestamp;
                 
                 if timestamp < next_timestamp && timestamp > current_timestamp {
@@ -105,7 +110,7 @@ impl Canvas {
                 }
             }
         }
-
+        println!("Found next pixel: {:?}", start_time.elapsed());
         self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
 

@@ -147,6 +147,11 @@ impl SerializedDataset {
         bincode::deserialize(bytes).unwrap()
     }
 
+    pub fn datapoint_timestamp_with_xy_and_idx(&self, x: u32, y: u32, idx: u32) -> u64 {
+        let history_offset = self.datapoint_history_xy_offset(x, y);
+        return self.datapoint_timestamp_with_history_offset(history_offset, idx);
+    }
+
     pub fn datapoint_with_history_offset(&self, history_offset: u64, idx: u32) -> RPlaceDatasetDatapoint {
         let bytes = self.datapoint_bytes_with_history_offset(history_offset, idx);
         bincode::deserialize(bytes).unwrap()
