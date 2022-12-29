@@ -40,7 +40,7 @@ impl RedditPlaceWindowHandler {
             // defaulting these values until the WindowHandler sets them during on_start
             mouse_position: Vector2::ZERO,
             is_mouse_pressed: false,
-            realtime_redraw_rectangle_threshold: 20000,
+            realtime_redraw_rectangle_threshold: 320000,
         }
     }
 }
