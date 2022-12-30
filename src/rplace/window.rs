@@ -14,6 +14,13 @@ use speedy2d::Graphics2D;
 use speedy2d::window::{WindowHandler, WindowHelper, VirtualKeyCode, MouseScrollDistance};
 use super::canvas::Canvas;
 
+#[derive(Debug, Copy, Clone)]
+pub struct SelectionRegion {
+    // screen pixel of top left and bottom right 
+    pub mouse_start: Vector2<f32>,
+    pub mouse_stop: Vector2<f32>,
+}
+
 #[derive(Debug)]
 pub struct RedditPlaceWindowHandler {
     graphics_helper: GraphicsHelper,
@@ -23,6 +30,7 @@ pub struct RedditPlaceWindowHandler {
     is_ctrl_pressed: bool,
     is_shift_pressed: bool,
     realtime_redraw_rectangle_threshold: u32,
+    selection_region: Option<SelectionRegion>,
 }
 
 impl RedditPlaceWindowHandler {
@@ -49,6 +57,7 @@ impl RedditPlaceWindowHandler {
             is_ctrl_pressed: false,
             is_shift_pressed: false,
             realtime_redraw_rectangle_threshold: 320000,
+            selection_region: None,
         }
     }
 }
@@ -247,27 +256,53 @@ impl WindowHandler for RedditPlaceWindowHandler
     }
 
     fn on_mouse_move(&mut self, helper: &mut WindowHelper<()>, position: speedy2d::dimen::Vec2) {
-        //println!("on_mouse_move {:?}", position);
+        println!("on_mouse_move {:?}", position);
+
         if self.is_mouse_pressed {
-            self.graphics_helper.canvas.top_left.x += position.x - self.mouse_position.x;
-            self.graphics_helper.canvas.top_left.y += position.y - self.mouse_position.y;
-            
-            // only redraw on mouse drag if amount of pixels to redraw is low
-            if self.graphics_helper.num_rectangles_to_redraw() < self.realtime_redraw_rectangle_threshold {
-                self.graphics_helper.adjust_timestamp(0);
-                helper.request_redraw();
+            if self.is_shift_pressed {
+                match self.selection_region {
+                    Some(_) => {
+                        self.selection_region = Some(SelectionRegion { 
+                            mouse_start: self.selection_region.unwrap().mouse_start, 
+                            mouse_stop: position 
+                        });
+                        println!("Selection region: {:?} | {:?}", self.selection_region, position);
+                        helper.request_redraw();
+                    },
+                    None => (),
+                }
+            } else {
+                self.graphics_helper.canvas.top_left.x += position.x - self.mouse_position.x;
+                self.graphics_helper.canvas.top_left.y += position.y - self.mouse_position.y;
+                
+                // only redraw on mouse drag if amount of pixels to redraw is low
+                if self.graphics_helper.num_rectangles_to_redraw() < self.realtime_redraw_rectangle_threshold {
+                    self.graphics_helper.adjust_timestamp(0);
+                    helper.request_redraw();
+                }
             }
         }
+
         self.mouse_position = position;
     }
 
     fn on_mouse_button_down(
             &mut self,
-            _helper: &mut WindowHelper<()>,
+            helper: &mut WindowHelper<()>,
             button: speedy2d::window::MouseButton
         ) {
         println!("on_mouse_button_down {:?}", button);
         self.is_mouse_pressed = true;
+        if self.is_shift_pressed {
+            self.selection_region = Some(SelectionRegion { 
+                mouse_start: self.mouse_position, 
+                mouse_stop: self.mouse_position, 
+            });
+            println!("Selection region: {:?}", self.selection_region);
+            helper.request_redraw();
+        } else {
+            self.selection_region = None;
+        }
     }
 
     fn on_mouse_button_up(
@@ -308,22 +343,25 @@ impl RedditPlaceWindowHandler {
         let x_width = x2 - x1;
         let y_height = y2 - y1;
 
-        let total_canvas_pixels = self.graphics_helper.num_rectangles_to_redraw();
-        let total_display_pixels = total_canvas_pixels as f32 * self.graphics_helper.canvas.pixel_size;
-        println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", 
-            x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
+        {
+            // Debug prints 
+            let total_canvas_pixels = self.graphics_helper.num_rectangles_to_redraw();
+            let total_display_pixels = total_canvas_pixels as f32 * self.graphics_helper.canvas.pixel_size;
+            println!("Drawing pixels between x={}..{}, y={}..{} | # canvas px: {} | # display px {} | px size {}", 
+                x1, x2, y1, y2, total_canvas_pixels, total_display_pixels, self.graphics_helper.canvas.pixel_size);
+        }
 
         let mut image_bytes: Vec<u8> = vec![0; x_width * y_height * 3];
         println!("Image bytes len: {}, size: ({},{})", image_bytes.len(), x_width, y_height);
 
-        for (display_y, canvas_y) in (y1..y2).into_iter().enumerate() {
-            for (display_x, canvas_x) in (x1..x2).into_iter().enumerate() {
+        for (image_y, canvas_y) in (y1..y2).into_iter().enumerate() {
+            for (image_x, canvas_x) in (x1..x2).into_iter().enumerate() {
                 let color: u32 = self.graphics_helper.canvas.pixels[canvas_y][canvas_x].color.into();
                 let r = (color >> 16 & 0xff) as u8;
                 let g = (color >> 8 & 0xff) as u8;
                 let b = (color & 0xff) as u8;
 
-                let idx = ((display_y * x_width) + display_x) * 3;
+                let idx = ((image_y * x_width) + image_x) * 3;
                 image_bytes[idx] = r;
                 image_bytes[idx + 1] = g;
                 image_bytes[idx + 2] = b;
@@ -362,20 +400,65 @@ impl RedditPlaceWindowHandler {
         let x_width = x2 - x1;
         let y_height = y2 - y1;
 
+        let image_bytes = self.get_image(x1, x2, y1, y2);
         let image = graphics.create_image_from_raw_pixels(
             ImageDataType::RGB, 
             ImageSmoothingMode::NearestNeighbor, 
             UVec2::new(x_width as u32, y_height as u32), 
-            self.get_image(x1, x2, y1, y2).as_slice(),
+            image_bytes.as_slice(),
         );
 
-        let (mut top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
-        let (_, mut bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+        let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
+        let bottom_right = Vec2::new(
+            top_left.x + x_width as f32 * self.graphics_helper.canvas.pixel_size,
+            top_left.y + y_height as f32 * self.graphics_helper.canvas.pixel_size
+        );
+        //let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
         let rect = Rectangle::new(top_left, bottom_right);
         
+        println!("Drawing screen from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
         match image {
             Ok(image) => graphics.draw_rectangle_image(rect, &image),
-            Err(e) => println!("Error {:?}", e),
+            Err(e) => {
+                println!("Error {:?}", e);
+                return;
+            },
+        }
+
+        if let Some(selected_region) = self.selection_region {
+            let top_left_screen_selection = Vec2::new(
+                f32::min(selected_region.mouse_start.x, selected_region.mouse_stop.x),
+                f32::min(selected_region.mouse_start.y, selected_region.mouse_stop.y)
+            );
+            let bottom_right_screen_selection = Vec2::new(
+                f32::max(selected_region.mouse_start.x, selected_region.mouse_stop.x),
+                f32::max(selected_region.mouse_start.y, selected_region.mouse_stop.y)
+            );
+
+            let x1 = f32::max(
+                0.0,
+                (top_left_screen_selection.x - self.graphics_helper.canvas.top_left.x) / self.graphics_helper.canvas.pixel_size
+            ).floor();
+            let y1 = f32::max(
+                0.0,
+                (top_left_screen_selection.y - self.graphics_helper.canvas.top_left.y) / self.graphics_helper.canvas.pixel_size
+            ).floor();
+            let x2 = f32::min(
+                self.graphics_helper.canvas.width() as f32,
+                (bottom_right_screen_selection.x - self.graphics_helper.canvas.top_left.x) / self.graphics_helper.canvas.pixel_size
+            ).floor();
+            let y2 = f32::min(
+                self.graphics_helper.canvas.height() as f32,
+                (bottom_right_screen_selection.y - self.graphics_helper.canvas.top_left.y) / self.graphics_helper.canvas.pixel_size
+            ).floor();
+
+            let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
+            let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+            let rect = Rectangle::new(top_left, bottom_right);
+            let color = Color::from_hex_argb(0x88FFFFFF);
+            println!("Drawing select from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
+
+            graphics.draw_rectangle(rect, color);
         }
     }
 }

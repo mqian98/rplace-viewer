@@ -110,15 +110,15 @@ impl GraphicsHelper {
         return true;
     }
 
-    pub fn pixel_index_bounds(&self, top_left: f32, canvas_length: f32, display_length: f32) -> (usize, usize) {
+    pub fn pixel_index_bounds(&self, screen_location_start: f32, canvas_length: f32, display_length: f32) -> (usize, usize) {
         let x1 = f32::max(
             0.0, 
-            -1.0 * top_left / self.canvas.pixel_size
+            -1.0 * screen_location_start / self.canvas.pixel_size
         );
         let x2 = min!(
             canvas_length as usize,
             (x1 + display_length as f32 / self.canvas.pixel_size).ceil() as usize, 
-            (x1 + top_left / self.canvas.pixel_size + canvas_length as f32).ceil() as usize
+            (x1 + screen_location_start / self.canvas.pixel_size + canvas_length as f32).ceil() as usize
         );
 
         return (x1.floor() as usize, x2);
