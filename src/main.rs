@@ -81,7 +81,7 @@ fn iterate_data(file_path: &str) {
 
 fn main() {
     //let file_path = "/Users/michaelqian/Projects/rplace/data/custom/output_iter_160_808_191";
-    let file_path = "/Users/michaelqian/Projects/rplace/data/custom/output_white";
+    let file_path = "data/custom/output_white";
     run_visualizer(file_path, 2000);
     
     //let file_path = "/Users/michaelqian/Projects/rplace/data/parquet/2022_place_deephaven.parquet";
