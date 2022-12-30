@@ -290,6 +290,19 @@ impl Canvas {
         return (top_left, bottom_right);
     }
 
+    pub fn get_canvas_coordinates(&self, x: f32, y: f32) -> Vector2<u32> {
+        let canvas_x = f32::max(
+            0.0,
+            (x - self.top_left.x) / self.pixel_size
+        ).floor();
+        let canvas_y = f32::max(
+            0.0,
+            (y - self.top_left.y) / self.pixel_size
+        ).floor();
+
+        return Vector2::new(canvas_x as u32, canvas_y as u32)
+    }
+
     // pixel_diff is positive on zoom in and negative on zoom out
     pub fn zoom(&mut self, pixel_size_diff: f32, location: Vector2<f32>) {
         // ensures the updated pixel size is always above self.min_pixel_size

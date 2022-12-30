@@ -435,25 +435,12 @@ impl RedditPlaceWindowHandler {
                 f32::max(selected_region.mouse_start.y, selected_region.mouse_stop.y)
             );
 
-            let x1 = f32::max(
-                0.0,
-                (top_left_screen_selection.x - self.graphics_helper.canvas.top_left.x) / self.graphics_helper.canvas.pixel_size
-            ).floor();
-            let y1 = f32::max(
-                0.0,
-                (top_left_screen_selection.y - self.graphics_helper.canvas.top_left.y) / self.graphics_helper.canvas.pixel_size
-            ).floor();
-            let x2 = f32::min(
-                self.graphics_helper.canvas.width() as f32,
-                (bottom_right_screen_selection.x - self.graphics_helper.canvas.top_left.x) / self.graphics_helper.canvas.pixel_size
-            ).floor();
-            let y2 = f32::min(
-                self.graphics_helper.canvas.height() as f32,
-                (bottom_right_screen_selection.y - self.graphics_helper.canvas.top_left.y) / self.graphics_helper.canvas.pixel_size
-            ).floor();
+            let top_left_canvas_coordinates = self.graphics_helper.canvas.get_canvas_coordinates(top_left_screen_selection.x, top_left_screen_selection.y);
+            let bottom_right_canvas_coordinates = self.graphics_helper.canvas.get_canvas_coordinates(bottom_right_screen_selection.x, bottom_right_screen_selection.y);
 
-            let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
-            let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+            let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(top_left_canvas_coordinates.x as u32, top_left_canvas_coordinates.y as u32);
+            let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(bottom_right_canvas_coordinates.x as u32, bottom_right_canvas_coordinates.y as u32);
+            
             let rect = Rectangle::new(top_left, bottom_right);
             let color = Color::from_hex_argb(0x88FFFFFF);
             println!("Drawing select from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
