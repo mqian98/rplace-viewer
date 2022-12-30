@@ -21,6 +21,6 @@ Views r/place data
 * WASD - move canvas up/down/left/right
 * Q/Esc - quit
 * 1 - jump to start
-* 2 - jump to first expansion
-* 3 - jump to second expansion
+* 2 - jump to start of first expansion
+* 3 - jump to start of second expansion
 * 4 - jump to end
