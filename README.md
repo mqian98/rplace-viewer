@@ -2,7 +2,7 @@
 Views r/place data
 
 ### Prereqs: 
-* Install rust
+* Install rust: https://www.rust-lang.org/tools/install
 
 ### Setup Steps:
 1. Download the git repo
