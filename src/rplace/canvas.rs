@@ -52,9 +52,9 @@ impl Canvas {
         let dataset = SerializedDataset::new(file_path);
         let min_timestamp = dataset.metadata.min_timestamp;
         let max_timestamp = dataset.metadata.max_timestamp;
-        let default_pixel = CanvasPixel::new(PixelColor::Black, min_timestamp);
+        let default_pixel = CanvasPixel::new(PixelColor::White, min_timestamp);
 
-        println!("Creatint Canvas | min_timestamp {} | max_timestamp {} | default_pixel {:?}", 
+        println!("Creating canvas | min_timestamp {} | max_timestamp {} | default_pixel {:?}", 
             min_timestamp, max_timestamp, default_pixel);
 
         Canvas {
