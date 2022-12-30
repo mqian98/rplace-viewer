@@ -377,7 +377,20 @@ impl RedditPlaceWindowHandler {
     }
 
     fn screenshot(&self) {
-        let (x1, x2, y1, y2) = self.graphics_helper.pixel_index_bounds_2d();
+        let (x1, x2, y1, y2) = if let Some(selected_region) = self.selection_region {
+            let top_left_canvas_coordinates = Vector2::new(
+                min!(selected_region.canvas_start.x, selected_region.canvas_stop.x),
+                min!(selected_region.canvas_start.y, selected_region.canvas_stop.y)
+            );
+            let bottom_right_canvas_coordinates = Vector2::new(
+                max!(selected_region.canvas_start.x, selected_region.canvas_stop.x),
+                max!(selected_region.canvas_start.y, selected_region.canvas_stop.y)
+            );
+
+            (top_left_canvas_coordinates.x as usize, bottom_right_canvas_coordinates.x as usize + 1, top_left_canvas_coordinates.y as usize, bottom_right_canvas_coordinates.y as usize + 1)
+        } else {
+            self.graphics_helper.pixel_index_bounds_2d()
+        };
         let x_width = x2 - x1;
         let y_height = y2 - y1;
 
