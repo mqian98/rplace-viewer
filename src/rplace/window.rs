@@ -414,11 +414,7 @@ impl RedditPlaceWindowHandler {
         );
 
         let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(x1 as u32, y1 as u32);
-        let bottom_right = Vec2::new(
-            top_left.x + x_width as f32 * self.graphics_helper.canvas.pixel_size,
-            top_left.y + y_height as f32 * self.graphics_helper.canvas.pixel_size
-        );
-        //let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
+        let (bottom_right, _) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
         let rect = Rectangle::new(top_left, bottom_right);
         
         println!("Drawing screen from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
