@@ -20,3 +20,7 @@ Views r/place data
 * P - screenshot selected area or whole screen if nothing is selected 
 * WASD - move canvas up/down/left/right
 * Q/Esc - quit
+* 1 - jump to start
+* 2 - jump to first expansion
+* 3 - jump to second expansion
+* 4 - jump to end
