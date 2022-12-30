@@ -291,16 +291,20 @@ impl Canvas {
     }
 
     pub fn get_canvas_coordinates(&self, x: f32, y: f32) -> Vector2<u32> {
-        let canvas_x = f32::max(
-            0.0,
-            (x - self.top_left.x) / self.pixel_size
-        ).floor();
-        let canvas_y = f32::max(
-            0.0,
-            (y - self.top_left.y) / self.pixel_size
-        ).floor();
+        let canvas_x = max!(
+            0,
+            ((x - self.top_left.x) / self.pixel_size).floor() as u32
+        );
 
-        return Vector2::new(canvas_x as u32, canvas_y as u32)
+        let canvas_y = max!(
+            0,
+            ((y - self.top_left.y) / self.pixel_size).floor() as u32
+        );
+        
+        return Vector2::new(
+            canvas_x.min(self.width() - 1), 
+            canvas_y.min(self.height() - 1)
+        );
     }
 
     // pixel_diff is positive on zoom in and negative on zoom out
