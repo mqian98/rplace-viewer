@@ -256,7 +256,7 @@ impl WindowHandler for RedditPlaceWindowHandler
     }
 
     fn on_mouse_move(&mut self, helper: &mut WindowHelper<()>, position: speedy2d::dimen::Vec2) {
-        println!("on_mouse_move {:?}", position);
+        //println!("on_mouse_move {:?}", position);
 
         if let Some(_) = self.is_mouse_pressed {
             if self.is_shift_pressed {
@@ -266,7 +266,6 @@ impl WindowHandler for RedditPlaceWindowHandler
                             canvas_start: self.selection_region.unwrap().canvas_start, 
                             canvas_stop: self.graphics_helper.canvas.get_canvas_coordinates(position.x, position.y) 
                         });
-                        println!("Selection region: {:?} | {:?}", self.selection_region, position);
                         helper.request_redraw();
                     },
                     None => (),
@@ -298,7 +297,6 @@ impl WindowHandler for RedditPlaceWindowHandler
                 canvas_start: self.graphics_helper.canvas.get_canvas_coordinates(self.mouse_position.x, self.mouse_position.y), 
                 canvas_stop: self.graphics_helper.canvas.get_canvas_coordinates(self.mouse_position.x, self.mouse_position.y), 
             });
-            println!("Selection region: {:?}", self.selection_region);
             helper.request_redraw();
         } 
     }
@@ -430,7 +428,6 @@ impl RedditPlaceWindowHandler {
         let (bottom_right, _) = self.graphics_helper.canvas.get_rect_bounds(x2 as u32, y2 as u32);
         let rect = Rectangle::new(top_left, bottom_right);
         
-        println!("Drawing screen from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
         match image {
             Ok(image) => graphics.draw_rectangle_image(rect, &image),
             Err(e) => {
@@ -454,7 +451,6 @@ impl RedditPlaceWindowHandler {
             
             let rect = Rectangle::new(top_left, bottom_right);
             let color = Color::from_hex_argb(0x88FFFFFF);
-            println!("Drawing select from: {} {} {} {} | Rect: {:?}", x1, x2, y1, y2, rect);
 
             graphics.draw_rectangle(rect, color);
         }
