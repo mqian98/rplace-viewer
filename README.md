@@ -1,16 +1,16 @@
 # rplace-viewer
 Views r/place data
 
-Prereqs: 
-Install rust
+### Prereqs: 
+* Install rust
 
-Steps:
+### Setup Steps:
 1. Download the git repo
 2. Download dataset (named output_white) from: https://drive.google.com/drive/folders/1hZ0dHd0WYgBmOt4cztPFBzLrKa2hV3Ao?usp=share_link
-3. Save file in data/custom/output_white
+3. Save file as `output_white` in `data/custom/`
 4. Run `cargo run` in the base directory
 
-Commands:
+### Commands:
 * Scroll - zoom in/out
 * Shift+scroll or J/L - fast forward/backward in time
 * Ctrl+scroll or ,/. - move foward/backward 1 pixel edit at a time
