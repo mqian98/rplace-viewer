@@ -1,5 +1,5 @@
 use image::RgbImage;
-use min_max::min;
+use min_max::{min, max};
 use speedy2d::image::{ImageDataType, ImageSmoothingMode, ImageHandle};
 use time::OffsetDateTime;
 use std::time::Instant;
@@ -16,9 +16,9 @@ use super::canvas::Canvas;
 
 #[derive(Debug, Copy, Clone)]
 pub struct SelectionRegion {
-    // screen pixel of top left and bottom right 
-    pub mouse_start: Vector2<f32>,
-    pub mouse_stop: Vector2<f32>,
+    // canvas pixel of top left and bottom right 
+    pub canvas_start: Vector2<u32>,
+    pub canvas_stop: Vector2<u32>,
 }
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ pub struct RedditPlaceWindowHandler {
     graphics_helper: GraphicsHelper,
     mouse_position: Vector2<f32>,
     adjust_timestamp_delta: i64,
-    is_mouse_pressed: bool,
+    is_mouse_pressed: Option<Vec2>,
     is_ctrl_pressed: bool,
     is_shift_pressed: bool,
     realtime_redraw_rectangle_threshold: u32,
@@ -53,7 +53,7 @@ impl RedditPlaceWindowHandler {
             // defaulting these values until the WindowHandler sets them during on_start
             mouse_position: Vector2::ZERO,
             adjust_timestamp_delta: 1_000_000_000_000,
-            is_mouse_pressed: false,
+            is_mouse_pressed: None,
             is_ctrl_pressed: false,
             is_shift_pressed: false,
             realtime_redraw_rectangle_threshold: 320000,
@@ -258,13 +258,13 @@ impl WindowHandler for RedditPlaceWindowHandler
     fn on_mouse_move(&mut self, helper: &mut WindowHelper<()>, position: speedy2d::dimen::Vec2) {
         println!("on_mouse_move {:?}", position);
 
-        if self.is_mouse_pressed {
+        if let Some(_) = self.is_mouse_pressed {
             if self.is_shift_pressed {
                 match self.selection_region {
                     Some(_) => {
                         self.selection_region = Some(SelectionRegion { 
-                            mouse_start: self.selection_region.unwrap().mouse_start, 
-                            mouse_stop: position 
+                            canvas_start: self.selection_region.unwrap().canvas_start, 
+                            canvas_stop: self.graphics_helper.canvas.get_canvas_coordinates(position.x, position.y) 
                         });
                         println!("Selection region: {:?} | {:?}", self.selection_region, position);
                         helper.request_redraw();
@@ -292,17 +292,15 @@ impl WindowHandler for RedditPlaceWindowHandler
             button: speedy2d::window::MouseButton
         ) {
         println!("on_mouse_button_down {:?}", button);
-        self.is_mouse_pressed = true;
+        self.is_mouse_pressed = Some(self.mouse_position);
         if self.is_shift_pressed {
             self.selection_region = Some(SelectionRegion { 
-                mouse_start: self.mouse_position, 
-                mouse_stop: self.mouse_position, 
+                canvas_start: self.graphics_helper.canvas.get_canvas_coordinates(self.mouse_position.x, self.mouse_position.y), 
+                canvas_stop: self.graphics_helper.canvas.get_canvas_coordinates(self.mouse_position.x, self.mouse_position.y), 
             });
             println!("Selection region: {:?}", self.selection_region);
             helper.request_redraw();
-        } else {
-            self.selection_region = None;
-        }
+        } 
     }
 
     fn on_mouse_button_up(
@@ -311,7 +309,14 @@ impl WindowHandler for RedditPlaceWindowHandler
             button: speedy2d::window::MouseButton
         ) {
         println!("on_mouse_button_down {:?}", button);
-        self.is_mouse_pressed = false;
+
+        // clear the selected region if mouse is clicked in place
+        if let Some(mouse_pressed_location) = self.is_mouse_pressed {
+            if mouse_pressed_location == self.mouse_position {
+                self.selection_region = None;
+            }
+        }
+        self.is_mouse_pressed = None;
         self.graphics_helper.adjust_timestamp(0);
         helper.request_redraw();
     }
@@ -426,17 +431,14 @@ impl RedditPlaceWindowHandler {
         }
 
         if let Some(selected_region) = self.selection_region {
-            let top_left_screen_selection = Vec2::new(
-                f32::min(selected_region.mouse_start.x, selected_region.mouse_stop.x),
-                f32::min(selected_region.mouse_start.y, selected_region.mouse_stop.y)
+            let top_left_canvas_coordinates = Vector2::new(
+                min!(selected_region.canvas_start.x, selected_region.canvas_stop.x),
+                min!(selected_region.canvas_start.y, selected_region.canvas_stop.y)
             );
-            let bottom_right_screen_selection = Vec2::new(
-                f32::max(selected_region.mouse_start.x, selected_region.mouse_stop.x),
-                f32::max(selected_region.mouse_start.y, selected_region.mouse_stop.y)
+            let bottom_right_canvas_coordinates = Vector2::new(
+                max!(selected_region.canvas_start.x, selected_region.canvas_stop.x),
+                max!(selected_region.canvas_start.y, selected_region.canvas_stop.y)
             );
-
-            let top_left_canvas_coordinates = self.graphics_helper.canvas.get_canvas_coordinates(top_left_screen_selection.x, top_left_screen_selection.y);
-            let bottom_right_canvas_coordinates = self.graphics_helper.canvas.get_canvas_coordinates(bottom_right_screen_selection.x, bottom_right_screen_selection.y);
 
             let (top_left, _) = self.graphics_helper.canvas.get_rect_bounds(top_left_canvas_coordinates.x as u32, top_left_canvas_coordinates.y as u32);
             let (_, bottom_right) = self.graphics_helper.canvas.get_rect_bounds(bottom_right_canvas_coordinates.x as u32, bottom_right_canvas_coordinates.y as u32);
