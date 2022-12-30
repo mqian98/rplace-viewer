@@ -182,12 +182,15 @@ impl Canvas {
                             let (search_idx, 
                                 search_datapoint,
                                 types_count) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
+
+                            /* 
                             *thread_idx_deltas.entry(search_idx as i32 - current_idx as i32).or_insert(0) += 1;
                             *thread_types_count.entry(types_count).or_insert(0) += 1;
                             if pixel.color != search_datapoint.color {
                                 thread_color_change_count += 1;
                             }
-
+                            */
+                            
                             pixel.color = search_datapoint.color;
                             pixel.datapoint_history_idx = search_idx;
                             pixel.timestamp = timestamp as u64;
@@ -217,6 +220,7 @@ impl Canvas {
                 thread_types_count, 
                 thread_color_change_count, 
                 thread_duration) = rx.recv().unwrap();
+            /*
             println!("Thread number: {:?} - Finished! - Duration {:?}", thread_idx, thread_duration);
 
             search_iterations_lesser += thread_search_iterations_lesser;
@@ -230,8 +234,10 @@ impl Canvas {
             for (delta, count) in thread_idx_deltas {
                 *search_idx_deltas.entry(delta).or_insert(0) += count;
             }
+            */
         }
-
+        
+        /* 
         let duration = start_time.elapsed();
         println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, color-change-count {} | timestamp {}", 
             duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, search_color_change_count, timestamp);
@@ -243,6 +249,9 @@ impl Canvas {
             println!("delta: {} count: {}", delta, count);
         }
         println!("Search types counts {:?}", search_types_count);
+        */
+
+        println!("adjust_timestamp duration: {:?}", start_time.elapsed());
     }
 
     pub fn display_size(&self) -> Vector2<f32> {

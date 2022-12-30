@@ -1,6 +1,7 @@
 use image::RgbImage;
 use min_max::min;
 use speedy2d::image::{ImageDataType, ImageSmoothingMode, ImageHandle};
+use time::OffsetDateTime;
 use std::time::Instant;
 
 use super::display::GraphicsHelper;
@@ -17,6 +18,7 @@ use super::canvas::Canvas;
 pub struct RedditPlaceWindowHandler {
     graphics_helper: GraphicsHelper,
     mouse_position: Vector2<f32>,
+    adjust_timestamp_delta: i64,
     is_mouse_pressed: bool,
     is_ctrl_pressed: bool,
     is_shift_pressed: bool,
@@ -42,6 +44,7 @@ impl RedditPlaceWindowHandler {
     
             // defaulting these values until the WindowHandler sets them during on_start
             mouse_position: Vector2::ZERO,
+            adjust_timestamp_delta: 1_000_000_000_000,
             is_mouse_pressed: false,
             is_ctrl_pressed: false,
             is_shift_pressed: false,
@@ -148,13 +151,25 @@ impl WindowHandler for RedditPlaceWindowHandler
                 println!("Screenshot");
                 self.screenshot();
             },
+            Some(VirtualKeyCode::Plus) | Some(VirtualKeyCode::Equals) => {
+                if self.adjust_timestamp_delta < 100_000_000_000_000 {
+                    self.adjust_timestamp_delta *= 10;
+                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
+                }
+            },
+            Some(VirtualKeyCode::Minus) => {
+                if self.adjust_timestamp_delta > 1 {
+                    self.adjust_timestamp_delta /= 10;
+                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
+                }
+            },
             Some(VirtualKeyCode::J) => {
-                let delta = -1_000_000_000_000;
+                let delta = -1 * self.adjust_timestamp_delta;
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::L) => {
-                let delta = 1_000_000_000_000;
+                let delta = self.adjust_timestamp_delta;
                 self.graphics_helper.adjust_timestamp(delta);
                 helper.request_redraw();
             },
@@ -195,9 +210,9 @@ impl WindowHandler for RedditPlaceWindowHandler
             helper: &mut WindowHelper<()>,
             distance: speedy2d::window::MouseScrollDistance
         ) {
-
+        println!("Mouse scroll distance: {:?}", distance);
         match distance {
-            MouseScrollDistance::Lines { y, .. } => {
+            MouseScrollDistance::Lines { x, y, .. } => {
                 let zoom = -1.0 * y as f32;
                 println!("on_mouse_wheel_scroll {:?}", zoom);
 
@@ -207,14 +222,14 @@ impl WindowHandler for RedditPlaceWindowHandler
                     } else {
                         self.graphics_helper.next_pixel_change();
                     }
-                    
+
                     helper.request_redraw();
                     return;
                 }
                 
                 if self.is_shift_pressed {
-                    let mut delta = 1_000_000_000_000;
-                    if y < 0.0 {
+                    let mut delta = self.adjust_timestamp_delta;
+                    if x < 0.0 {
                         delta *= -1;
                     }
 
@@ -336,7 +351,7 @@ impl RedditPlaceWindowHandler {
             } 
         }
 
-        match image.save("screenshot.png") {
+        match image.save(format!("screenshots/screenshot-{:?}.png", OffsetDateTime::now_utc())) {
             Err(e) => println!("Error: {:?}", e),
             _ => (),
         };
