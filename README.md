@@ -13,11 +13,11 @@ Views r/place data
 
 ### Commands:
 * Scroll - Zoom in/out
-* Shift+scroll or J/L - Fast forward/backward in time
-* Ctrl+scroll or ,/. - Move foward/backward 1 pixel edit at a time
+* Shift+Scroll or J/L - Fast forward/backward in time
+* Ctrl+Scroll or ,/. - Move foward/backward 1 pixel edit at a time
 * Plus/Minus - Control how much to fast forwards/backwards by
-* Click+drag - Move canvas around
-* Shift+click - Select area
+* Mouse Press->Drag - Move canvas around
+* Shift+Mouse Press->Drag - Select area
 * P - Screenshot selected area or whole screen if nothing is selected. Images are saved in the `screenshots` folder
 * WASD - Move canvas up/down/left/right
 * Q/Esc - Quit
