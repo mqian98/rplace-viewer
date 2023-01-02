@@ -29,6 +29,7 @@ pub struct RedditPlaceWindowHandler {
     is_mouse_pressed: Option<Vec2>,
     is_ctrl_pressed: bool,
     is_shift_pressed: bool,
+    scroll_direction: f64,
     realtime_redraw_rectangle_threshold: u32,
     selection_region: Option<SelectionRegion>,
 }
@@ -56,6 +57,7 @@ impl RedditPlaceWindowHandler {
             is_mouse_pressed: None,
             is_ctrl_pressed: false,
             is_shift_pressed: false,
+            scroll_direction: 1.0,
             realtime_redraw_rectangle_threshold: 320000,
             selection_region: None,
         }
@@ -160,6 +162,10 @@ impl WindowHandler for RedditPlaceWindowHandler
                 println!("Screenshot");
                 self.screenshot();
             },
+            Some(VirtualKeyCode::T) => {
+                self.scroll_direction *= -1.0;
+                println!("Setting scroll direction to {}", self.scroll_direction);
+            },
             Some(VirtualKeyCode::Plus) | Some(VirtualKeyCode::Equals) => {
                 if self.adjust_timestamp_delta < 100_000_000_000_000 {
                     self.adjust_timestamp_delta *= 10;
@@ -219,14 +225,22 @@ impl WindowHandler for RedditPlaceWindowHandler
             helper: &mut WindowHelper<()>,
             distance: speedy2d::window::MouseScrollDistance
         ) {
-        println!("Mouse scroll distance: {:?}", distance);
+        println!("on_mouse_wheel_scroll: {:?}", distance);
         match distance {
-            MouseScrollDistance::Lines { x, y, .. } => {
-                let zoom = -1.0 * y as f32;
-                println!("on_mouse_wheel_scroll {:?}", zoom);
+            MouseScrollDistance::Lines { x, y, z } => {
+                let min = x.min(y).min(z);
+                let max = x.max(y).max(z);
+                let value = if min < 0.0 { 
+                    min * self.scroll_direction
+                } else if max > 0.0 {
+                    max * self.scroll_direction
+                } else {
+                    println!("Ignoring scroll value");
+                    return;
+                };
 
                 if self.is_ctrl_pressed {
-                    if y < 0.0 {
+                    if value < 0.0 {
                         self.graphics_helper.prev_pixel_change();
                     } else {
                         self.graphics_helper.next_pixel_change();
@@ -238,7 +252,7 @@ impl WindowHandler for RedditPlaceWindowHandler
                 
                 if self.is_shift_pressed {
                     let mut delta = self.adjust_timestamp_delta;
-                    if x < 0.0 {
+                    if value < 0.0 {
                         delta *= -1;
                     }
 
@@ -247,6 +261,7 @@ impl WindowHandler for RedditPlaceWindowHandler
                     return;
                 } 
                 
+                let zoom = -1.0 * value as f32;
                 self.zoom_into_mouse_location(zoom); 
                 self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();

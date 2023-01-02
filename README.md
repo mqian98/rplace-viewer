@@ -15,6 +15,7 @@ Views r/place data
 * Scroll - Zoom in/out
 * Shift+Scroll or J/L - Fast forward/backward in time
 * Ctrl+Scroll or ,/. - Move foward/backward 1 pixel edit at a time
+* T - Toggle scroll direction
 * Plus/Minus - Control how much to fast forwards/backwards by
 * Mouse Press->Drag - Move canvas around
 * Shift+Mouse Press->Drag - Select area
