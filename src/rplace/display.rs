@@ -9,7 +9,6 @@ pub struct GraphicsHelper {
     pub canvas: Canvas,
     pub display_size: Vector2<u32>,
     pub scale_factor: f32,
-    pub timestamp: u64,
 }
 
 impl GraphicsHelper {
@@ -17,7 +16,6 @@ impl GraphicsHelper {
         let timestamp = canvas.min_timestamp;
         GraphicsHelper {
             canvas,
-            timestamp,
 
             // default values
             display_size: Vector2::ZERO,
@@ -38,7 +36,7 @@ impl GraphicsHelper {
     }
 
     pub fn adjust_timestamp(&mut self, delta: i64) {
-        let mut new_timestamp = self.timestamp as i64 + delta;
+        let mut new_timestamp = self.canvas.timestamp as i64 + delta;
         if new_timestamp > self.canvas.max_timestamp as i64 {
             new_timestamp = self.canvas.max_timestamp as i64;
         }
@@ -48,7 +46,6 @@ impl GraphicsHelper {
         
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
         self.canvas.adjust_timestamp(new_timestamp, x1, x2, y1, y2);
-        self.timestamp = new_timestamp as u64;
     }
 
     pub fn adjust_timestamp_to_day(&mut self, day: u32) {
@@ -64,7 +61,6 @@ impl GraphicsHelper {
 
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
         self.canvas.adjust_timestamp(new_timestamp, x1, x2, y1, y2);
-        self.timestamp = new_timestamp as u64;
     }
 
     pub fn display_width(&self) -> u32 {

@@ -44,6 +44,7 @@ pub struct Canvas {
     pub dataset: SerializedDataset,
     pub min_timestamp: u64,
     pub max_timestamp: u64,
+    pub timestamp: u64,
 }
 
 // Initialization 
@@ -66,6 +67,7 @@ impl Canvas {
             dataset,
             min_timestamp,
             max_timestamp,
+            timestamp: min_timestamp,
         }
     }
 }
@@ -251,6 +253,7 @@ impl Canvas {
         println!("Search types counts {:?}", search_types_count);
         */
 
+        self.timestamp = timestamp as u64;
         println!("adjust_timestamp duration: {:?}", start_time.elapsed());
     }
 
