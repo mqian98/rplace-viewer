@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::collections::hash_map::Keys;
 use std::sync::Arc;
 use std::sync::mpsc::{Sender, Receiver, self};
@@ -93,7 +93,7 @@ impl Canvas {
                 }
             }
         }
-        println!("Found prev pixel: {:?}", start_time.elapsed());
+        println!("Found prev pixel: timestamp={} | duration: {:?}", prev_timestamp, start_time.elapsed());
         self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
@@ -112,12 +112,52 @@ impl Canvas {
                 }
             }
         }
-        println!("Found next pixel: {:?}", start_time.elapsed());
+        println!("Found next pixel: timestamp={} | duration: {:?}", next_timestamp, start_time.elapsed());
+        self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
+    }
+
+    pub fn next_nth_pixel_change(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
+        let start_time = Instant::now();
+        let mut timestamps = Vec::new();
+
+        for y in y1..y2 {
+            for x in x1..x2 {
+                let max_datapoint_history_idx = self.dataset.datapoint_history_len(x as u32, y as u32) - 1;
+                let next_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx + 1;
+                let nth_datapoint_history_idx = next_datapoint_history_idx + n;
+                for idx in next_datapoint_history_idx..min!(nth_datapoint_history_idx, max_datapoint_history_idx) {
+                    let timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx as u32);
+                    let current_timestamp = self.pixels[y][x].timestamp;
+                    
+                    if timestamp > current_timestamp {
+                        timestamps.push(timestamp);
+                    }
+                }
+            }
+        }
+
+        if timestamps.is_empty() {
+            println!("Keeping timestamp the same");
+            return;
+        }
+
+        let next_timestamp = if timestamps.len() <= n {
+            *timestamps.iter().max().unwrap()
+        } else {
+            floydrivest::nth_element(&mut timestamps, n-1, &mut Ord::cmp);
+            timestamps[n-1]
+        };
+
+        println!("Found next nth pixel: n={} timestamp={} | duration: {:?}", n, next_timestamp, start_time.elapsed());
         self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         println!("Adjust timestamp between x={}..{} y={}..{}", x1, x2, y1, y2);
+        if x1 >= x2 || y1 >= y2 {
+            println!("Skipping adjust timestamp");
+            return;
+        }
 
         // variables for speed metrics
         let start_time = Instant::now();

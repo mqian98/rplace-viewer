@@ -716,6 +716,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "floydrivest"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7638b6426e81a0b730b7eb4ddac592b86e8118edff02107ffa452ba2cbd00e0a"
+
+[[package]]
 name = "flume"
 version = "0.10.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1838,6 +1844,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "csv",
+ "floydrivest",
  "image 0.24.5",
  "libm",
  "log",

@@ -1,4 +1,4 @@
-use min_max::min;
+use min_max::{min, max};
 use speedy2d::dimen::Vector2;
 use speedy2d::shape::Rectangle;
 use super::canvas::Canvas;
@@ -32,7 +32,7 @@ impl GraphicsHelper {
 
     pub fn next_pixel_change(&mut self) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
-        self.canvas.next_pixel_change(x1, x2, y1, y2);
+        self.canvas.next_nth_pixel_change(1, x1, x2, y1, y2);
     }
 
     pub fn adjust_timestamp(&mut self, delta: i64) {
@@ -113,11 +113,12 @@ impl GraphicsHelper {
         );
         let x2 = min!(
             canvas_length as usize,
-            (x1 + display_length as f32 / self.canvas.pixel_size).ceil() as usize, 
-            (x1 + screen_location_start / self.canvas.pixel_size + canvas_length as f32).ceil() as usize
+            (x1 + (display_length - f32::max(0.0, screen_location_start)) / self.canvas.pixel_size).ceil() as usize
         );
 
-        return (x1.floor() as usize, x2);
+        let x1_final = f32::min(x1, canvas_length).floor() as usize;
+        let x2_final = max(x1_final, x2);
+        return (x1_final, x2_final);
     }
 
     pub fn pixel_index_bounds_2d(&self) -> (usize, usize, usize, usize) {
