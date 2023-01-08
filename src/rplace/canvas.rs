@@ -116,7 +116,7 @@ impl Canvas {
                 }
                 
                 let last_idx = prev_datapoint_history_idx as u32 + 1;
-                let first_idx = (last_idx as i32 - n as i32) as u32;
+                let first_idx = max!(0, last_idx as i32 - n as i32) as u32;
                 for idx in first_idx..last_idx {
                     timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
 
