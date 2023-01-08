@@ -97,6 +97,53 @@ impl Canvas {
         self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
+    pub fn prev_nth_pixel_change(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
+        let start_time = Instant::now();
+        let mut timestamps = Vec::new();
+
+        for y in y1..y2 {
+            for x in x1..x2 {
+                let current_timestamp = self.pixels[y][x].timestamp;
+                let mut prev_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx as i32;
+                let mut timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx as u32);
+
+                if timestamp == current_timestamp {
+                    prev_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx as i32 - 1;
+                }
+
+                if prev_datapoint_history_idx < 0 {
+                    continue;
+                }
+                
+                let last_idx = prev_datapoint_history_idx as u32 + 1;
+                let first_idx = (last_idx as i32 - n as i32) as u32;
+                for idx in first_idx..last_idx {
+                    timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
+
+                    if timestamp < current_timestamp {
+                        timestamps.push(timestamp);
+                    }
+                }
+            }
+        }
+
+        if timestamps.is_empty() {
+            println!("Keeping timestamp the same");
+            return;
+        }
+
+        let prev_timestamp = if timestamps.len() <= n {
+            *timestamps.iter().min().unwrap()
+        } else {
+            let idx = timestamps.len() - n;
+            floydrivest::nth_element(&mut timestamps, idx, &mut Ord::cmp);
+            timestamps[idx]
+        };
+
+        println!("Found prev nth pixel: n={} timestamp={} | duration: {:?}", n, prev_timestamp, start_time.elapsed());
+        self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
+    }
+
     pub fn next_pixel_change(&mut self, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
         let mut next_timestamp = self.max_timestamp;

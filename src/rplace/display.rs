@@ -27,7 +27,7 @@ impl GraphicsHelper {
 impl GraphicsHelper {
     pub fn prev_pixel_change(&mut self) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
-        self.canvas.prev_pixel_change(x1, x2, y1, y2);
+        self.canvas.prev_nth_pixel_change(1, x1, x2, y1, y2);
     }
 
     pub fn next_pixel_change(&mut self) {
