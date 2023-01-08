@@ -28,6 +28,7 @@ pub struct RedditPlaceWindowHandler {
     graphics_helper: GraphicsHelper,
     mouse_position: Vector2<f32>,
     adjust_timestamp_delta: i64,
+    adjust_pixel_delta: u64,
     is_mouse_pressed: Option<Vec2>,
     is_ctrl_pressed: bool,
     is_shift_pressed: bool,
@@ -56,6 +57,7 @@ impl RedditPlaceWindowHandler {
             // defaulting these values until the WindowHandler sets them during on_start
             mouse_position: Vector2::ZERO,
             adjust_timestamp_delta: 1_000_000_000_000,
+            adjust_pixel_delta: 1,
             is_mouse_pressed: None,
             is_ctrl_pressed: false,
             is_shift_pressed: false,
@@ -169,12 +171,24 @@ impl WindowHandler for RedditPlaceWindowHandler
                 println!("Setting scroll direction to {}", self.scroll_direction);
             },
             Some(VirtualKeyCode::Plus) | Some(VirtualKeyCode::Equals) => {
+                if self.is_ctrl_pressed && self.adjust_pixel_delta < 1024 {
+                    self.adjust_pixel_delta <<= 1;
+                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
+                    return;
+                }
+
                 if self.adjust_timestamp_delta < 100_000_000_000_000 {
                     self.adjust_timestamp_delta *= 10;
                     println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
                 }
             },
             Some(VirtualKeyCode::Minus) => {
+                if self.is_ctrl_pressed && self.adjust_pixel_delta > 1 {
+                    self.adjust_pixel_delta >>= 1;
+                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
+                    return;
+                }
+
                 if self.adjust_timestamp_delta > 1 {
                     self.adjust_timestamp_delta /= 10;
                     println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
@@ -191,11 +205,11 @@ impl WindowHandler for RedditPlaceWindowHandler
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::Comma) => {
-                self.graphics_helper.prev_pixel_change();
+                self.graphics_helper.prev_nth_pixel_change(self.adjust_pixel_delta);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::Period) => {
-                self.graphics_helper.next_pixel_change();
+                self.graphics_helper.next_nth_pixel_change(self.adjust_pixel_delta);
                 helper.request_redraw();
             },
             Some(VirtualKeyCode::Key0) => {
@@ -243,9 +257,9 @@ impl WindowHandler for RedditPlaceWindowHandler
 
                 if self.is_ctrl_pressed {
                     if value < 0.0 {
-                        self.graphics_helper.prev_pixel_change();
+                        self.graphics_helper.prev_nth_pixel_change(self.adjust_pixel_delta);
                     } else {
-                        self.graphics_helper.next_pixel_change();
+                        self.graphics_helper.next_nth_pixel_change(self.adjust_pixel_delta);
                     }
 
                     helper.request_redraw();

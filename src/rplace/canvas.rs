@@ -136,7 +136,8 @@ impl Canvas {
             *timestamps.iter().min().unwrap()
         } else {
             let idx = timestamps.len() - n;
-            floydrivest::nth_element(&mut timestamps, idx, &mut Ord::cmp);
+            //floydrivest::nth_element(&mut timestamps, idx, &mut Ord::cmp);
+            timestamps.sort();
             timestamps[idx]
         };
 
@@ -191,7 +192,8 @@ impl Canvas {
         let next_timestamp = if timestamps.len() <= n {
             *timestamps.iter().max().unwrap()
         } else {
-            floydrivest::nth_element(&mut timestamps, n-1, &mut Ord::cmp);
+            //floydrivest::nth_element(&mut timestamps, n-1, &mut Ord::cmp);
+            timestamps.sort();
             timestamps[n-1]
         };
 
