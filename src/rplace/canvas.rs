@@ -258,6 +258,19 @@ impl Canvas {
                 
                 if total_cost >= value {
                     // can potentially reduce the range of the worst (x, y) that contributed to the cost to (idx_range[j][i].0, idx_outputs[idx] - 1)
+                    for idx in 0..idx_outputs.len() {
+                        let i = (idx + init_idx) % width + x1;
+                        let j = (idx + init_idx) / width + y1; 
+        
+                        let updated_range = (
+                            idx_range[j][i].0,
+                            max!(min!(idx_outputs[idx], idx_range[j][i].1), idx_range[j][i].0), 
+                        );
+                        if updated_range != idx_range[j][i] {
+                            //println!("check_timestamp_cost cost<{}  | idx_range[{}][{}]={:?} -> {:?}", value, j, i, idx_range[j][i], updated_range);
+                            idx_range[j][i] = updated_range;
+                        }
+                    }
                     return (total_cost, init_idx_cost.unwrap());
                 }
             }
