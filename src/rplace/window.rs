@@ -88,6 +88,13 @@ impl WindowHandler for RedditPlaceWindowHandler
         println!("WindowHandler size {:?}", std::mem::size_of_val(self));
     }
 
+    fn on_resize(&mut self, helper: &mut WindowHelper<()>, size_pixels: UVec2) {
+        println!("Window has been resized: {:?}", size_pixels);
+        self.graphics_helper.display_size = size_pixels;
+        self.graphics_helper.adjust_timestamp(0);
+        helper.request_redraw();
+    }
+
     fn on_key_down(
             &mut self,
             helper: &mut WindowHelper<()>,
@@ -103,26 +110,6 @@ impl WindowHandler for RedditPlaceWindowHandler
             Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::RShift) => {
                 self.is_shift_pressed = true;
             },
-            _ => (),
-        }
-    }
-
-    fn on_key_up(
-            &mut self,
-            helper: &mut WindowHelper<()>,
-            virtual_key_code: Option<speedy2d::window::VirtualKeyCode>,
-            scancode: speedy2d::window::KeyScancode
-        ) {
-        println!("Detected keyup event {:?} {:?}", virtual_key_code, scancode);
-
-        match virtual_key_code {
-            Some(VirtualKeyCode::LControl) | Some(VirtualKeyCode::RControl) => {
-                self.is_ctrl_pressed = false;
-            },
-            Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::RShift) => {
-                self.is_shift_pressed = false;
-            },
-            Some(VirtualKeyCode::Q) | Some(VirtualKeyCode::Escape) => exit(0),
             Some(VirtualKeyCode::Up) => {
                 self.zoom_into_center_of_display(0.5);
                 self.graphics_helper.adjust_timestamp(0);
@@ -153,6 +140,26 @@ impl WindowHandler for RedditPlaceWindowHandler
                 self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
+            _ => (),
+        }
+    }
+
+    fn on_key_up(
+            &mut self,
+            helper: &mut WindowHelper<()>,
+            virtual_key_code: Option<speedy2d::window::VirtualKeyCode>,
+            scancode: speedy2d::window::KeyScancode
+        ) {
+        println!("Detected keyup event {:?} {:?}", virtual_key_code, scancode);
+
+        match virtual_key_code {
+            Some(VirtualKeyCode::LControl) | Some(VirtualKeyCode::RControl) => {
+                self.is_ctrl_pressed = false;
+            },
+            Some(VirtualKeyCode::LShift) | Some(VirtualKeyCode::RShift) => {
+                self.is_shift_pressed = false;
+            },
+            Some(VirtualKeyCode::Q) | Some(VirtualKeyCode::Escape) => exit(0),
             Some(VirtualKeyCode::C) => {
                 println!("Center coordinate = {:?}", self.graphics_helper.canvas.center_coordinate());
             },
