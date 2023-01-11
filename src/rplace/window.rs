@@ -140,6 +140,48 @@ impl WindowHandler for RedditPlaceWindowHandler
                 self.graphics_helper.adjust_timestamp(0);
                 helper.request_redraw();
             },
+            Some(VirtualKeyCode::Plus) | Some(VirtualKeyCode::Equals) => {
+                if self.is_ctrl_pressed && self.adjust_pixel_delta < 1024 {
+                    self.adjust_pixel_delta <<= 1;
+                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
+                    return;
+                }
+
+                if !self.is_ctrl_pressed && self.adjust_timestamp_delta < 100_000_000_000_000 {
+                    self.adjust_timestamp_delta *= 10;
+                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
+                }
+            },
+            Some(VirtualKeyCode::Minus) => {
+                if self.is_ctrl_pressed && self.adjust_pixel_delta > 1 {
+                    self.adjust_pixel_delta >>= 1;
+                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
+                    return;
+                }
+
+                if !self.is_ctrl_pressed && self.adjust_timestamp_delta > 1 {
+                    self.adjust_timestamp_delta /= 10;
+                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
+                }
+            },
+            Some(VirtualKeyCode::J) => {
+                let delta = -1 * self.adjust_timestamp_delta;
+                self.graphics_helper.adjust_timestamp(delta);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::L) => {
+                let delta = self.adjust_timestamp_delta;
+                self.graphics_helper.adjust_timestamp(delta);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Comma) => {
+                self.graphics_helper.prev_nth_pixel_change(self.adjust_pixel_delta);
+                helper.request_redraw();
+            },
+            Some(VirtualKeyCode::Period) => {
+                self.graphics_helper.next_nth_pixel_change(self.adjust_pixel_delta);
+                helper.request_redraw();
+            },
             _ => (),
         }
     }
@@ -176,48 +218,6 @@ impl WindowHandler for RedditPlaceWindowHandler
             Some(VirtualKeyCode::T) => {
                 self.scroll_direction *= -1.0;
                 println!("Setting scroll direction to {}", self.scroll_direction);
-            },
-            Some(VirtualKeyCode::Plus) | Some(VirtualKeyCode::Equals) => {
-                if self.is_ctrl_pressed && self.adjust_pixel_delta < 1024 {
-                    self.adjust_pixel_delta <<= 1;
-                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
-                    return;
-                }
-
-                if self.adjust_timestamp_delta < 100_000_000_000_000 {
-                    self.adjust_timestamp_delta *= 10;
-                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
-                }
-            },
-            Some(VirtualKeyCode::Minus) => {
-                if self.is_ctrl_pressed && self.adjust_pixel_delta > 1 {
-                    self.adjust_pixel_delta >>= 1;
-                    println!("Updated adjust_pixel_delta: {}", self.adjust_pixel_delta);
-                    return;
-                }
-
-                if self.adjust_timestamp_delta > 1 {
-                    self.adjust_timestamp_delta /= 10;
-                    println!("Updated adjust_timestamp_delta: {}", self.adjust_timestamp_delta);
-                }
-            },
-            Some(VirtualKeyCode::J) => {
-                let delta = -1 * self.adjust_timestamp_delta;
-                self.graphics_helper.adjust_timestamp(delta);
-                helper.request_redraw();
-            },
-            Some(VirtualKeyCode::L) => {
-                let delta = self.adjust_timestamp_delta;
-                self.graphics_helper.adjust_timestamp(delta);
-                helper.request_redraw();
-            },
-            Some(VirtualKeyCode::Comma) => {
-                self.graphics_helper.prev_nth_pixel_change(self.adjust_pixel_delta);
-                helper.request_redraw();
-            },
-            Some(VirtualKeyCode::Period) => {
-                self.graphics_helper.next_nth_pixel_change(self.adjust_pixel_delta);
-                helper.request_redraw();
             },
             Some(VirtualKeyCode::Key0) => {
                 self.graphics_helper.adjust_timestamp_to_day(0);
