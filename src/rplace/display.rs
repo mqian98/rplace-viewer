@@ -32,9 +32,6 @@ impl GraphicsHelper {
 
     pub fn next_nth_pixel_change(&mut self, n: u64) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
-        unsafe {
-            self.canvas.next_nth_pixel_change_fast(n as usize, x1, x2, y1, y2);
-        }
         self.canvas.next_nth_pixel_change_low_mem(n as usize, x1, x2, y1, y2);
     }
 
