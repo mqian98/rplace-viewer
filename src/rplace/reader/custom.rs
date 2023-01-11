@@ -160,26 +160,6 @@ impl SerializedDataset {
     pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize, current_value: &CanvasPixel) -> (usize, RPlaceDatasetDatapoint, i32) {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
         let history_offset = self.datapoint_history_xy_offset(x as u32, y as u32);
-        
-        // // first check next datapoint 
-        // if current_value.timestamp < timestamp {
-        //     let last_possible_idx = end_idx as i32 - 1;
-        //     let next_idx = min!(last_possible_idx, current_value.datapoint_history_idx as i32 + 1);
-        //     let next_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, next_idx as u32);
-        //     if timestamp < next_datapoint_timestamp {
-        //         return (current_value.datapoint_history_idx, self.datapoint_with_history_offset(history_offset, current_value.datapoint_history_idx as u32), 0);
-        //     } else if timestamp == next_datapoint_timestamp || 
-        //             (timestamp > next_datapoint_timestamp && next_idx == last_possible_idx) {
-        //         return (next_idx as usize, self.datapoint_with_history_offset(history_offset, next_idx as u32), 0);
-        //     }
-        // } else if current_value.timestamp >= timestamp {
-        //     let prev_idx = max!(start_idx as i32, current_value.datapoint_history_idx as i32);
-        //     let prev_datapoint_timestamp = self.datapoint_timestamp_with_history_offset(history_offset, prev_idx as u32);
-        //     if timestamp >= prev_datapoint_timestamp ||
-        //             (timestamp < prev_datapoint_timestamp && prev_idx == start_idx as i32) {
-        //         return (prev_idx as usize, self.datapoint_with_history_offset(history_offset, prev_idx as u32), 0);
-        //     }
-        // }
 
         // perform binary search
         let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
@@ -189,12 +169,7 @@ impl SerializedDataset {
         let index;
         match result {
             Ok(value) => index = start_idx + value,
-            Err(value) => {
-                index = start_idx + value - 1;
-                // if value < 1 {
-                //     println!("Err - value should be above 1: value={} index={} t={} x={} y={} idx=[{}, {})", value, index, timestamp, x, y, start_idx, end_idx);
-                // }
-            },
+            Err(value) => index = start_idx + value - 1,
         }
 
         (index, self.datapoint_with_history_offset(history_offset, index as u32), 1)

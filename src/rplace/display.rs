@@ -27,7 +27,31 @@ impl GraphicsHelper {
 impl GraphicsHelper {
     pub fn prev_nth_pixel_change(&mut self, n: u64) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
+
+        let mut old_history_idx = vec![vec![0usize; 2000]; 2000];
+        for y in y1..y2 {
+            for x in x1..x2 {
+                old_history_idx[y][x] = self.canvas.pixels[y][x].datapoint_history_idx;
+            }
+        }
+
+        self.canvas.prev_nth_pixel_change_low_mem(n as usize, x1, x2, y1, y2);
         self.canvas.prev_nth_pixel_change(n as usize, x1, x2, y1, y2);
+
+        let mut changes = 0;
+        for y in y1..y2 {
+            for x in x1..x2 {
+                let pixel = self.canvas.pixels[y][x];
+                let timestamp = self.canvas.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, pixel.datapoint_history_idx as u32);
+                if timestamp == self.canvas.timestamp {
+                    println!("Latest datapoint - (x, y)=({}, {}) | timestamp: {} | history_idx: {}",
+                        x, y, self.canvas.timestamp, pixel.datapoint_history_idx);
+                }
+
+                changes += old_history_idx[y][x] - self.canvas.pixels[y][x].datapoint_history_idx;
+            }
+        }
+        println!("Detected {} changes", changes);
     }
 
     pub fn next_nth_pixel_change(&mut self, n: u64) {
@@ -40,9 +64,7 @@ impl GraphicsHelper {
             }
         }
         
-        unsafe {
-            self.canvas.next_nth_pixel_change_fast(n as usize, x1, x2, y1, y2);
-        }
+        self.canvas.next_nth_pixel_change_low_mem(n as usize, x1, x2, y1, y2);
         self.canvas.next_nth_pixel_change(n as usize, x1, x2, y1, y2);
 
         let mut changes = 0;
