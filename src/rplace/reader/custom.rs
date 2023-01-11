@@ -5,7 +5,7 @@ use min_max::{min, max};
 use serde::{Serialize, Deserialize};
 use strum::IntoEnumIterator;
 
-use crate::rplace::{dataset::{RPlaceDatasetDatapoint, RPlaceDataset}, data::RPlaceDataReader, pixel::PixelColor, canvas::CanvasPixel};
+use crate::rplace::{dataset::{RPlaceDatasetDatapoint, RPlaceDataset}, data::RPlaceDataReader, pixel::PixelColor, canvas::CanvasPixel, search::least_greater};
 
 //const SERIALIZED_DATAPOINT_SIZE: u8 = 14;
 //assert_eq!(SERIALIZED_DATAPOINT_SIZE, RPlaceDatasetDatapoint::start().to_bytes().len() as u8);
@@ -157,22 +157,21 @@ impl SerializedDataset {
         bincode::deserialize(bytes).unwrap()
     }
 
-    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize, current_value: &CanvasPixel) -> (usize, RPlaceDatasetDatapoint, i32) {
+    pub fn search(&self, timestamp: u64, x: usize, y: usize, start_idx: usize, end_idx: usize, current_value: &CanvasPixel) -> usize {
         //println!("Searching for timestamp {} at ({}, {}) in {}..{}", timestamp, x, y, start_idx, end_idx);
         let history_offset = self.datapoint_history_xy_offset(x as u32, y as u32);
 
-        // perform binary search
-        let result = (start_idx..end_idx).into_iter().collect::<Vec<usize>>().binary_search_by(|idx: &usize| 
-            self.datapoint_timestamp_with_history_offset(history_offset, *idx as u32).cmp(&timestamp)
-        );
+        let result = least_greater(&timestamp, start_idx as i64, end_idx as i64 - 1, |i: usize| {
+            self.datapoint_timestamp_with_history_offset(history_offset, i as u32)
+        });
 
         let index;
         match result {
-            Ok(value) => index = start_idx + value,
-            Err(value) => index = start_idx + value - 1,
+            Ok(value) => index = value as usize,
+            Err(value) => index = value as usize - 1,
         }
 
-        (index, self.datapoint_with_history_offset(history_offset, index as u32), 1)
+        index
     }
 }
 

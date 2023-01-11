@@ -1,34 +1,38 @@
-pub fn search<T>(value: &T, vector: &Vec<T>) -> Option<T> where T: PartialOrd + Copy {
-    let ret_idx = least_greater(value, vector, &mut 0, &mut (vector.len() as i64 - 1));
-    match ret_idx - 1 {
-        x if x < 0 => None,
-        x => Some(vector[x as usize]),
-    }
+pub fn search<T>(value: &T, vector: &Vec<T>) -> Result<i64, i64> where T: PartialOrd + Copy {
+    let element = | i: usize | -> T { 
+        vector[i]
+    };
+    least_greater(value, 0, vector.len() as i64 - 1, element)
 }
 
 // obtained from https://www.geeksforgeeks.org/variants-of-binary-search/
-fn least_greater<T>(value: &T, vector: &Vec<T>, start_idx: &mut i64, end_idx: &mut i64) -> i64 where T: PartialOrd + Copy {
-    let mut ret_idx = *end_idx + 1;
+pub fn least_greater<T, V>(value: &T, mut start_idx: i64, mut end_idx: i64, element: V) -> Result<i64, i64> where V: Fn(usize) -> T, T: PartialOrd + Copy {
+    let mut ret_idx = end_idx + 1;
     let mut mid_idx;
+    let mut found = false;
 
-    while *start_idx <= *end_idx {
-        mid_idx = *start_idx + ((*end_idx - *start_idx + 1) / 2);
-        match &vector[mid_idx as usize] {
-            &v if v < *value => {
-                *start_idx = mid_idx + 1;
+    while start_idx <= end_idx {
+        mid_idx = start_idx + ((end_idx - start_idx + 1) / 2);
+        match element(mid_idx as usize) {
+            v if v < *value => {
+                start_idx = mid_idx + 1;
             },
-            &v if v > *value => {
+            v if v == *value => {
+                start_idx = mid_idx + 1;
+                found = true;
+            },
+            v if v > *value => {
                 ret_idx = mid_idx;
-                *end_idx = mid_idx - 1;
+                end_idx = mid_idx - 1;
             },
-            &v if v == *value => {
-                *start_idx = mid_idx + 1;
-            },
-            &_ => todo!()
+            _ => todo!()
         }
     }
 
-    return ret_idx;
+    match found {
+        true => Ok(ret_idx - 1),
+        false => Err(ret_idx),
+    }
 }
 
 fn main() {

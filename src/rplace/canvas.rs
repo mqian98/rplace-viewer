@@ -74,30 +74,6 @@ impl Canvas {
 }
 
 impl Canvas {
-    // TODO: need to fix this logic as it can change multiple pixels at a time
-    pub fn prev_pixel_change(&mut self, x1: usize, x2: usize, y1: usize, y2: usize) {
-        let start_time = Instant::now();
-        let mut prev_timestamp = self.min_timestamp;
-        for y in y1..y2 {
-            for x in x1..x2 {
-                let current_timestamp = self.pixels[y][x].timestamp;
-                let mut prev_datapoint_history_idx = max!(0, self.pixels[y][x].datapoint_history_idx) as u32;
-                let mut timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx);
-
-                if timestamp == current_timestamp {
-                    prev_datapoint_history_idx = max!(0, self.pixels[y][x].datapoint_history_idx as i32 - 1) as u32;
-                    timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx);
-                }
-                
-                if timestamp > prev_timestamp && timestamp < current_timestamp {
-                    prev_timestamp = timestamp;
-                }
-            }
-        }
-        println!("Found prev pixel: timestamp={} | duration: {:?}", prev_timestamp, start_time.elapsed());
-        self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
-    }
-
     pub fn prev_nth_pixel_change(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
         let mut timestamps = Vec::new();
@@ -148,7 +124,7 @@ impl Canvas {
 
     pub fn prev_nth_pixel_change_low_mem(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::new();
+        let mut timestamps = Vec::with_capacity(2*n);
 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -186,31 +162,12 @@ impl Canvas {
 
         let prev_timestamp = timestamps[n-1];
         println!("Found prev nth pixel: n={} timestamp={} | duration: {:?}", n, prev_timestamp, start_time.elapsed());
-        //self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
-    }
-
-    pub fn next_pixel_change(&mut self, x1: usize, x2: usize, y1: usize, y2: usize) {
-        let start_time = Instant::now();
-        let mut next_timestamp = self.max_timestamp;
-        for y in y1..y2 {
-            for x in x1..x2 {
-                let max_datapoint_history_idx = self.dataset.datapoint_history_len(x as u32, y as u32) - 1;
-                let next_datapoint_history_idx = min!(self.pixels[y][x].datapoint_history_idx + 1, max_datapoint_history_idx) as u32;
-                let timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, next_datapoint_history_idx);
-                let current_timestamp = self.pixels[y][x].timestamp;
-                
-                if timestamp < next_timestamp && timestamp > current_timestamp {
-                    next_timestamp = timestamp;
-                }
-            }
-        }
-        println!("Found next pixel: timestamp={} | duration: {:?}", next_timestamp, start_time.elapsed());
-        self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
+        self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn next_nth_pixel_change(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::new();
+        let mut timestamps = Vec::with_capacity(2*n);
 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -268,7 +225,7 @@ impl Canvas {
 
         let next_timestamp = timestamps[n-1];
         println!("Found next nth pixel: n={} timestamp={} | duration: {:?}", n, next_timestamp, start_time.elapsed());
-        //self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
+        self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
@@ -278,15 +235,7 @@ impl Canvas {
             return;
         }
 
-        // variables for speed metrics
         let start_time = Instant::now();
-        let mut search_iterations_lesser = 0.0;
-        let mut search_iterations_greater = 0.0;
-        let mut unchanged_idx_count = 0;
-        let mut search_idx_deltas: HashMap<i32, u32> = HashMap::new();
-        let mut search_types_count: HashMap<i32, u32> = HashMap::new();
-        let mut search_color_change_count = 0;
-
         let n_threads = 8;
         let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
         let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
@@ -299,7 +248,7 @@ impl Canvas {
             xy_sliced_canvas.push(slices);
         }
 
-        type CanvasThreadOutput = (usize, f32, f32, i32, HashMap<i32, u32>, HashMap<i32, u32>, i32, Duration);
+        type CanvasThreadOutput = (usize, Duration);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
         let dataset = Arc::new(&self.dataset);
         thread::scope(|scope| {
@@ -307,12 +256,6 @@ impl Canvas {
                 let thread_tx = tx.clone();
                 let thread_dataset = dataset.clone();
                 scope.spawn(move || {
-                    let mut thread_search_iterations_lesser = 0.0;
-                    let mut thread_search_iterations_greater = 0.0;
-                    let mut thread_unchanged_idx_count = 0;
-                    let mut thread_idx_deltas: HashMap<i32, u32> = HashMap::new();
-                    let mut thread_types_count: HashMap<i32, u32> = HashMap::new();
-                    let mut thread_color_change_count = 0;
                     let mut thread_start_time = Instant::now();
 
                     for (row_idx, row) in slice.into_iter().enumerate() {
@@ -324,33 +267,21 @@ impl Canvas {
                                 1_i64..=i64::MAX => {
                                     let start_idx = current_idx;
                                     let end_idx = thread_dataset.datapoint_history_len(x as u32, y as u32);
-                                    thread_search_iterations_greater += ((end_idx - start_idx) as f32).log2();
                                     (start_idx, end_idx)
                                 },
                                 i64::MIN..=-1_i64 => {
                                     let start_idx = 0;
                                     let end_idx = current_idx + 1;
-                                    thread_search_iterations_lesser += ((end_idx - start_idx) as f32).log2();
                                     (start_idx, end_idx)
                                 },
                                 0 => { 
-                                    thread_unchanged_idx_count += 1;
-                                    *thread_idx_deltas.entry(0).or_insert(0) += 1;
                                     continue
                                 },
                             };
             
-                            let (search_idx, 
-                                search_datapoint,
-                                types_count) = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
-
-                            /* 
-                            *thread_idx_deltas.entry(search_idx as i32 - current_idx as i32).or_insert(0) += 1;
-                            *thread_types_count.entry(types_count).or_insert(0) += 1;
-                            if pixel.color != search_datapoint.color {
-                                thread_color_change_count += 1;
-                            }
-                            */
+                            let search_idx = thread_dataset.search(timestamp as u64, x, y, start_idx, end_idx, pixel);
+                            let history_offset = thread_dataset.datapoint_history_xy_offset(x as u32, y as u32);
+                            let search_datapoint = thread_dataset.datapoint_with_history_offset(history_offset, search_idx as u32);
                             
                             pixel.color = search_datapoint.color;
                             pixel.datapoint_history_idx = search_idx;
@@ -360,12 +291,6 @@ impl Canvas {
 
                     thread_tx.send((
                         n_th, 
-                        thread_search_iterations_lesser,
-                        thread_search_iterations_greater, 
-                        thread_unchanged_idx_count, 
-                        thread_idx_deltas, 
-                        thread_types_count, 
-                        thread_color_change_count, 
                         thread_start_time.elapsed()
                     )).unwrap();
                 });
@@ -373,44 +298,9 @@ impl Canvas {
         });
 
         for _ in 0..xy_sliced_canvas.len() {
-            let (thread_idx, 
-                thread_search_iterations_lesser, 
-                thread_search_iterations_greater, 
-                thread_unchanged_idx_count, 
-                thread_idx_deltas, 
-                thread_types_count, 
-                thread_color_change_count, 
-                thread_duration) = rx.recv().unwrap();
-            /*
-            println!("Thread number: {:?} - Finished! - Duration {:?}", thread_idx, thread_duration);
-
-            search_iterations_lesser += thread_search_iterations_lesser;
-            search_iterations_greater += thread_search_iterations_greater;
-            unchanged_idx_count += thread_unchanged_idx_count;
-            search_color_change_count += thread_color_change_count;
-            
-            for (t, count) in thread_types_count {
-                *search_types_count.entry(t).or_insert(0) += count;
-            }
-            for (delta, count) in thread_idx_deltas {
-                *search_idx_deltas.entry(delta).or_insert(0) += count;
-            }
-            */
+            let (thread_idx, thread_duration) = rx.recv().unwrap();
+            //println!("Thread number: {:?} - Finished! - Duration {:?}", thread_idx, thread_duration);
         }
-        
-        /* 
-        let duration = start_time.elapsed();
-        println!("adjust_timestamp duration: {}ms. search-lesser {}, search-greater {}, unchanged-px {}, color-change-count {} | timestamp {}", 
-            duration.as_millis(), search_iterations_lesser, search_iterations_greater, unchanged_idx_count, search_color_change_count, timestamp);
-
-        let mut search_mutated: Vec<(&i32, &u32)> = search_idx_deltas.iter().collect();
-        search_mutated.sort_by(|x,y| y.1.cmp(&x.1));
-        println!("Search idx deltas");
-        for (delta, count) in &search_mutated[0..min(5, search_mutated.len())] {
-            println!("delta: {} count: {}", delta, count);
-        }
-        println!("Search types counts {:?}", search_types_count);
-        */
 
         self.timestamp = timestamp as u64;
         println!("adjust_timestamp duration: {:?}", start_time.elapsed());

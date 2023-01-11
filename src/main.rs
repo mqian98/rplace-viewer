@@ -3,6 +3,8 @@ use std::time::Instant;
 use speedy2d::Window;
 use rplace::{window::RedditPlaceWindowHandler, data::RPlaceDataReader, reader::custom::{write_data_to_file, read_data_from_compressed_file}};
 
+use crate::rplace::search::search;
+
 pub struct RPlaceDataCounter {
     pub counter: Vec<Vec<u32>>,
 }
@@ -79,7 +81,22 @@ fn iterate_data(file_path: &str) {
     //thread::sleep(Duration::from_secs(30));
 }
 
+fn test_search() {
+    let vector: Vec<u64> = [2, 3, 3, 5, 5, 5, 6, 6].to_vec();
+    println!("Vector: {:?}", vector);
+
+    for i in 0..10u64 {
+        let value = i as u64;
+        let result = search(&value, &vector);
+        let bin_search_result = vector.binary_search(&i);
+        println!("Search: {} Result: {:?} {:?}", value, result, bin_search_result);
+    }
+}
+
 fn main() {
+    // test_search();
+    // return;
+
     //let file_path = "/Users/michaelqian/Projects/rplace/data/custom/output_iter_160_808_191";
     let file_path = "data/custom/output_white";
     run_visualizer(file_path, 2000);
