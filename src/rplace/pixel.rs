@@ -117,7 +117,7 @@ impl TryFrom<u32> for PixelColor {
 
     fn try_from(item: u32) -> Result<Self, Self::Error> {
         for color in PixelColor::iter() {
-            if item == color.into() {
+            if item == <PixelColor as Into<u32>>::into(color) {
                 return Ok(color);
             }
         }
@@ -131,7 +131,7 @@ impl TryFrom<u64> for PixelColor {
 
     fn try_from(item: u64) -> Result<Self, Self::Error> {
         for color in PixelColor::iter() {
-            if item == color.into() {
+            if item == <PixelColor as Into<u64>>::into(color) {
                 return Ok(color);
             }
         }

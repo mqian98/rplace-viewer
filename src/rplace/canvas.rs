@@ -229,7 +229,7 @@ impl Canvas {
    }
 
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
-        println!("Adjust timestamp between x={}..{} y={}..{}", x1, x2, y1, y2);
+        println!("Adjust timestamp between x={}..{} y={}..{} | t={}", x1, x2, y1, y2, timestamp);
         if x1 >= x2 || y1 >= y2 {
             println!("Skipping adjust timestamp");
             return;

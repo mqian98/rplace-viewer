@@ -18,6 +18,8 @@ memmap = "0.7"
 min-max = "0.1"
 num = "0.4"
 parquet = "26.0"
+rand = "0.8"
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_repr = "0.1"
 speedy2d = "1.8.0"
