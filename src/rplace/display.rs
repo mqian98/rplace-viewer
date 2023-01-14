@@ -28,11 +28,13 @@ impl GraphicsHelper {
     pub fn prev_nth_pixel_change(&mut self, n: u64) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
         self.canvas.prev_nth_pixel_change_low_mem(n as usize, x1, x2, y1, y2);
+        self.canvas.prev_nth_pixel_change(n as usize, x1, x2, y1, y2);
     }
 
     pub fn next_nth_pixel_change(&mut self, n: u64) {
         let (x1, x2, y1, y2) = self.pixel_index_bounds_2d();
         self.canvas.next_nth_pixel_change_low_mem(n as usize, x1, x2, y1, y2);
+        self.canvas.next_nth_pixel_change(n as usize, x1, x2, y1, y2);
     }
 
     pub fn adjust_timestamp(&mut self, delta: i64) {

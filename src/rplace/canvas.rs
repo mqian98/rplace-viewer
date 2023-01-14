@@ -5,6 +5,8 @@ use std::sync::mpsc::{Sender, Receiver, self};
 use std::thread;
 use std::time::{Instant, Duration};
 
+use crate::rplace::data::{MAX_TIMESTAMP, DAY_1_START_TIMESTAMP};
+
 use super::pixel::PixelColor;
 use super::reader::custom::SerializedDataset;
 use libm::log2;
@@ -76,7 +78,7 @@ impl Canvas {
 impl Canvas {
     pub fn prev_nth_pixel_change(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::new();
+        let mut cache = Vec::new();
 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -98,24 +100,24 @@ impl Canvas {
                     timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
 
                     if timestamp < current_timestamp {
-                        timestamps.push(timestamp);
+                        cache.push(timestamp);
                     }
                 }
             }
         }
 
-        if timestamps.is_empty() {
+        if cache.is_empty() {
             println!("Keeping timestamp the same");
             return;
         }
 
-        let prev_timestamp = if timestamps.len() <= n {
-            *timestamps.iter().min().unwrap()
+        let prev_timestamp = if cache.len() <= n {
+            *cache.iter().min().unwrap()
         } else {
-            let idx = timestamps.len() - n;
+            let idx = cache.len() - n;
             //floydrivest::nth_element(&mut timestamps, idx, &mut Ord::cmp);
-            timestamps.sort();
-            timestamps[idx]
+            cache.sort();
+            cache[idx]
         };
 
         println!("Found prev nth pixel: n={} timestamp={} | duration: {:?}", n, prev_timestamp, start_time.elapsed());
@@ -124,8 +126,9 @@ impl Canvas {
 
     pub fn prev_nth_pixel_change_low_mem(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::with_capacity(2*n);
+        let mut cache = Vec::with_capacity(2*n);
 
+        let mut prev_timestamp = DAY_1_START_TIMESTAMP;
         for y in y1..y2 {
             for x in x1..x2 {
                 let current_timestamp = self.pixels[y][x].timestamp;
@@ -140,34 +143,44 @@ impl Canvas {
                     continue;
                 }
                 
+                let start_length = cache.len();
                 let last_idx = prev_datapoint_history_idx as u32 + 1;
                 let first_idx = max!(0, last_idx as i32 - n as i32) as u32;
                 for idx in first_idx..last_idx {
                     timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
-
-                    if timestamp < current_timestamp {
-                        timestamps.push(timestamp);
+                    if timestamp < prev_timestamp {
+                        break;
                     }
+                    cache.push(timestamp);
                 }
 
-                timestamps.sort_by(|a, b| b.cmp(a));
-                timestamps.truncate(n);
+                // sort if cache has increased in size
+                if cache.len() > start_length {
+                    cache.sort_by(|a, b| b.cmp(a));
+                }
+
+                // keep only the n largest timestamps
+                cache.truncate(n);
+
+                // update nth smallest timestamp
+                if !cache.is_empty() {
+                    prev_timestamp = cache[cache.len()-1];
+                }
             }
         }
 
-        if timestamps.is_empty() {
+        if cache.is_empty() {
             println!("Keeping timestamp the same");
             return;
         }
 
-        let prev_timestamp = timestamps[n-1];
         println!("Found prev nth pixel: n={} timestamp={} | duration: {:?}", n, prev_timestamp, start_time.elapsed());
-        self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
+        //self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn next_nth_pixel_change(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::with_capacity(2*n);
+        let mut cache = Vec::with_capacity(2*n);
 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -176,57 +189,71 @@ impl Canvas {
                 let next_nth_datapoint_history_idx = next_datapoint_history_idx + n;
                 for idx in next_datapoint_history_idx..min!(next_nth_datapoint_history_idx, max_datapoint_history_idx) {
                     let timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx as u32);
-                    timestamps.push(timestamp);
+                    cache.push(timestamp);
                 }
             }
         }
 
-        if timestamps.is_empty() {
+        if cache.is_empty() {
             println!("Keeping timestamp the same: {}", self.timestamp);
             return;
         }
 
-        let next_timestamp = if timestamps.len() <= n {
-            *timestamps.iter().max().unwrap()
+        let next_timestamp = if cache.len() <= n {
+            *cache.iter().max().unwrap()
         } else {
             //floydrivest::nth_element(&mut timestamps, n-1, &mut Ord::cmp);
-            timestamps.sort();
-            timestamps[n-1]
+            cache.sort();
+            cache[n-1]
         };
 
-        println!("Found next nth pixel: n={} timestamp={} | duration: {:?} | fetches={}", n, next_timestamp, start_time.elapsed(), timestamps.len());
+        println!("Found next nth pixel: n={} timestamp={} | duration: {:?} | fetches={}", n, next_timestamp, start_time.elapsed(), cache.len());
         self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
-
-    // 2x slower than normal version but uses O(2n) space instaed of O(whn) space
+         
     pub fn next_nth_pixel_change_low_mem(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut timestamps = Vec::new();
+        let mut cache = Vec::with_capacity(2*n);
 
+        let mut next_timestamp = MAX_TIMESTAMP; 
         for y in y1..y2 {
             for x in x1..x2 {
                 let max_datapoint_history_idx = self.dataset.datapoint_history_len(x as u32, y as u32);
                 let next_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx + 1;
                 let next_nth_datapoint_history_idx = next_datapoint_history_idx + n;
+
+                let start_length = cache.len();
                 for idx in next_datapoint_history_idx..min!(next_nth_datapoint_history_idx, max_datapoint_history_idx) {
                     let timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx as u32);
-                    timestamps.push(timestamp);
+                    if timestamp > next_timestamp {
+                        break;
+                    }
+                    cache.push(timestamp);
                 }
 
-                timestamps.sort();
-                timestamps.truncate(n);
+                // sort if cache has increased in size
+                if cache.len() > start_length {
+                    cache.sort();
+                }
+
+                // keep only the n smallest timestamps
+                cache.truncate(n);
+
+                // update nth smallest timestamp
+                if !cache.is_empty() {
+                    next_timestamp = cache[cache.len()-1];
+                }
             }
         }
 
-        if timestamps.is_empty() {
+        if cache.is_empty() {
             println!("Keeping timestamp the same: {}", self.timestamp);
             return;
         }
 
-        let next_timestamp = timestamps[n-1];
         println!("Found next nth pixel: n={} timestamp={} | duration: {:?}", n, next_timestamp, start_time.elapsed());
-        self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
-   }
+        //self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
+    }
 
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         println!("Adjust timestamp between x={}..{} y={}..{} | t={}", x1, x2, y1, y2, timestamp);
