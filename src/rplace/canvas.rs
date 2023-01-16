@@ -122,6 +122,8 @@ impl Canvas {
         self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
+    // TODO: draw only the pixels that changed
+    // TODO: use threading to speed up search
     pub fn prev_nth_pixel_change_low_mem(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
         let mut total_added = 0;
@@ -133,6 +135,8 @@ impl Canvas {
                 let mut prev_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx as i32;
                 let mut timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx as u32);
 
+                // TODO: shoudn't be using current_timestamp but rather max(self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx as u32)) 
+                // and reducing the hist_index of the largest timestamp by 1
                 if timestamp == current_timestamp {
                     prev_datapoint_history_idx -= 1;
                 }
@@ -176,7 +180,7 @@ impl Canvas {
 
     pub fn next_nth_pixel_change(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
-        let mut cache = Vec::with_capacity(2*n);
+        let mut cache = Vec::new();
 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -207,6 +211,8 @@ impl Canvas {
         self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
          
+    // TODO: draw only the pixels that changed
+    // TODO: use threading to speed up search
     pub fn next_nth_pixel_change_low_mem(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
         let mut total_added = 0;
