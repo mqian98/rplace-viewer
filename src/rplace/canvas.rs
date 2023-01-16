@@ -249,6 +249,20 @@ impl Canvas {
         self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
 
+    fn split_canvas_into_chunks(pixels: &mut Vec<Vec<CanvasPixel>>, n_threads: u32, x1: usize, x2: usize, y1: usize, y2: usize) -> (Box<Vec<Vec<&mut [CanvasPixel]>>>, usize) {
+        let y_chunk_size = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
+        let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = pixels[y1..y2].chunks_mut(y_chunk_size).collect();
+        let mut xy_sliced_canvas: Box<Vec<Vec<&mut [CanvasPixel]>>> = Box::new(Vec::new());
+        for rows in y_chunked_canvas {
+            let mut slices: Vec<&mut [CanvasPixel]> = Vec::new();
+            for row in rows {
+                slices.push(&mut row[x1..x2]);
+            }
+            xy_sliced_canvas.push(slices);
+        }
+        (xy_sliced_canvas, y_chunk_size)
+    }
+
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {
         println!("Adjust timestamp between x={}..{} y={}..{} | t={}", x1, x2, y1, y2, timestamp);
         if x1 >= x2 || y1 >= y2 {
@@ -257,17 +271,7 @@ impl Canvas {
         }
 
         let start_time = Instant::now();
-        let n_threads = 8;
-        let chunk = f32::ceil((y2 - y1) as f32 / n_threads as f32) as usize;
-        let y_chunked_canvas: Vec<&mut [Vec<CanvasPixel>]> = self.pixels[y1..y2].chunks_mut(chunk).collect();
-        let mut xy_sliced_canvas: Vec<Vec<&mut [CanvasPixel]>> = Vec::new();
-        for rows in y_chunked_canvas {
-            let mut slices: Vec<&mut [CanvasPixel]> = Vec::new();
-            for row in rows {
-                slices.push(&mut row[x1..x2]);
-            }
-            xy_sliced_canvas.push(slices);
-        }
+        let (mut xy_sliced_canvas, y_chunk_size) = Self::split_canvas_into_chunks(&mut self.pixels, 8, x1, x2, y1, y2);
 
         type CanvasThreadOutput = (usize, Duration);
         let (tx, rx): (Sender<CanvasThreadOutput>, Receiver<CanvasThreadOutput>) = mpsc::channel();
@@ -277,10 +281,9 @@ impl Canvas {
                 let thread_tx = tx.clone();
                 let thread_dataset = dataset.clone();
                 scope.spawn(move || {
-                    let mut thread_start_time = Instant::now();
-
+                    let thread_start_time = Instant::now();
                     for (row_idx, row) in slice.into_iter().enumerate() {
-                        let y = n_th * chunk + row_idx + y1;
+                        let y = n_th * y_chunk_size + row_idx + y1;
                         for (col_idx, pixel) in row.into_iter().enumerate() {
                             let x = col_idx + x1; 
                             let current_idx = pixel.datapoint_history_idx;
