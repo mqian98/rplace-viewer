@@ -5,7 +5,7 @@ use std::sync::mpsc::{Sender, Receiver, self};
 use std::thread;
 use std::time::{Instant, Duration};
 
-use crate::rplace::data::{MAX_TIMESTAMP, DAY_1_START_TIMESTAMP};
+use crate::rplace::data::{MAX_TIMESTAMP, DAY_1_START_TIMESTAMP, MIN_TIMESTAMP};
 
 use super::pixel::PixelColor;
 use super::reader::custom::SerializedDataset;
@@ -100,10 +100,7 @@ impl Canvas {
                 let first_idx = max!(0, last_idx as i32 - n as i32) as u32;
                 for idx in first_idx..last_idx {
                     timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
-
-                    if timestamp < current_timestamp {
-                        cache.push(timestamp);
-                    }
+                    cache.push(timestamp);
                 }
             }
         }
@@ -127,9 +124,9 @@ impl Canvas {
 
     pub fn prev_nth_pixel_change_low_mem(&mut self, n: usize, x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
+        let mut total_added = 0;
         let mut cache = Vec::with_capacity(2*n);
-
-        let mut prev_timestamp = DAY_1_START_TIMESTAMP;
+        let mut prev_timestamp = MIN_TIMESTAMP;
         for y in y1..y2 {
             for x in x1..x2 {
                 let current_timestamp = self.pixels[y][x].timestamp;
@@ -157,9 +154,12 @@ impl Canvas {
 
                 // update nth largest timestamp if cache has increased in size
                 if cache.len() > start_length {
+                    total_added += cache.len() - start_length;
                     cache.sort_by(|a, b| b.cmp(a));
                     cache.truncate(n);
-                    prev_timestamp = cache[cache.len()-1];
+                    if cache.len() == n {
+                        prev_timestamp = cache[n-1];
+                    }
                 }
             }
         }
@@ -169,8 +169,9 @@ impl Canvas {
             return;
         }
 
-        println!("Found prev nth pixel: n={} timestamp={} | duration: {:?}", n, prev_timestamp, start_time.elapsed());
-        //self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
+        let naive_count = (y2 - y1) * (x2 - x1) * n;
+        println!("Found prev nth pixel: n={} timestamp={} | duration: {:?} | added = {} / {}", n, prev_timestamp, start_time.elapsed(), total_added, naive_count);
+        self.adjust_timestamp(prev_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn next_nth_pixel_change(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
@@ -208,8 +209,8 @@ impl Canvas {
          
     pub fn next_nth_pixel_change_low_mem(&mut self, n: usize,  x1: usize, x2: usize, y1: usize, y2: usize) {
         let start_time = Instant::now();
+        let mut total_added = 0;
         let mut cache = Vec::with_capacity(2*n);
-
         let mut next_timestamp = MAX_TIMESTAMP; 
         for y in y1..y2 {
             for x in x1..x2 {
@@ -228,9 +229,12 @@ impl Canvas {
 
                 // update nth smallest timestamp if cache has increased in size
                 if cache.len() > start_length {
+                    total_added += cache.len() - start_length;
                     cache.sort();
                     cache.truncate(n);
-                    next_timestamp = cache[cache.len()-1];
+                    if cache.len() == n {
+                        next_timestamp = cache[n-1];
+                    }
                 }
             }
         }
@@ -240,8 +244,9 @@ impl Canvas {
             return;
         }
 
-        println!("Found next nth pixel: n={} timestamp={} | duration: {:?}", n, next_timestamp, start_time.elapsed());
-        //self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
+        let naive_count = (y2 - y1) * (x2 - x1) * n;
+        println!("Found next nth pixel: n={} timestamp={} | duration: {:?} | added = {} / {}", n, next_timestamp, start_time.elapsed(), total_added, naive_count);
+        self.adjust_timestamp(next_timestamp as i64, x1, x2, y1, y2);
     }
 
     pub fn adjust_timestamp(&mut self, timestamp: i64, x1: usize, x2: usize, y1: usize, y2: usize) {

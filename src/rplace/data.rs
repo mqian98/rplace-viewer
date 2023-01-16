@@ -5,6 +5,7 @@ use super::{pixel::PixelColor, reader::parquet::{RPlaceParquetDatapoint, RPlaceP
 pub const DAY_1_START_TIMESTAMP: u64 = 1648817050315000000;
 pub const DAY_2_START_TIMESTAMP: u64 = 1648916696239000000;
 pub const DAY_3_START_TIMESTAMP: u64 = 1649012633356000000;
+pub const MIN_TIMESTAMP: u64 = DAY_1_START_TIMESTAMP-1;
 pub const MAX_TIMESTAMP: u64 = 1649117640207000000;
 
 pub const DAY_1_START_LINE: u64 = 0;
