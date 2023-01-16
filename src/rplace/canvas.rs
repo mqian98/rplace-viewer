@@ -86,6 +86,8 @@ impl Canvas {
                 let mut prev_datapoint_history_idx = self.pixels[y][x].datapoint_history_idx as i32;
                 let mut timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx as u32);
 
+                // TODO: shoudn't be using current_timestamp but rather max(self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, prev_datapoint_history_idx as u32)) 
+                // and reducing the hist_index of the largest timestamp by 1
                 if timestamp == current_timestamp {
                     prev_datapoint_history_idx -= 1;
                 }
@@ -115,7 +117,6 @@ impl Canvas {
             *cache.iter().min().unwrap()
         } else {
             let idx = cache.len() - n;
-            //floydrivest::nth_element(&mut timestamps, idx, &mut Ord::cmp);
             cache.sort();
             cache[idx]
         };
@@ -146,7 +147,7 @@ impl Canvas {
                 let start_length = cache.len();
                 let last_idx = prev_datapoint_history_idx as u32 + 1;
                 let first_idx = max!(0, last_idx as i32 - n as i32) as u32;
-                for idx in first_idx..last_idx {
+                for idx in (first_idx..last_idx).rev() {
                     timestamp = self.dataset.datapoint_timestamp_with_xy_and_idx(x as u32, y as u32, idx);
                     if timestamp < prev_timestamp {
                         break;
@@ -154,16 +155,10 @@ impl Canvas {
                     cache.push(timestamp);
                 }
 
-                // sort if cache has increased in size
+                // update nth largest timestamp if cache has increased in size
                 if cache.len() > start_length {
                     cache.sort_by(|a, b| b.cmp(a));
-                }
-
-                // keep only the n largest timestamps
-                cache.truncate(n);
-
-                // update nth smallest timestamp
-                if !cache.is_empty() {
+                    cache.truncate(n);
                     prev_timestamp = cache[cache.len()-1];
                 }
             }
@@ -231,16 +226,10 @@ impl Canvas {
                     cache.push(timestamp);
                 }
 
-                // sort if cache has increased in size
+                // update nth smallest timestamp if cache has increased in size
                 if cache.len() > start_length {
                     cache.sort();
-                }
-
-                // keep only the n smallest timestamps
-                cache.truncate(n);
-
-                // update nth smallest timestamp
-                if !cache.is_empty() {
+                    cache.truncate(n);
                     next_timestamp = cache[cache.len()-1];
                 }
             }
